@@ -142,6 +142,15 @@ out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | s
 assert_contains "uninitialized bar is 10 empty chars" "$out" "░░░░░░░░░░"
 assert_not_contains "uninitialized bar is not wider than 10 chars" "$out" "░░░░░░░░░░░"
 
+# --- statusline-main.sh: cache hit rate ---
+
+cache_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":50,\"current_usage\":{\"input_tokens\":1000,\"cache_creation_input_tokens\":9000,\"cache_read_input_tokens\":90000,\"output_tokens\":10}}}"
+out=$(echo "$cache_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "cache hit rate computed from current_usage" "$out" "Cache: 90%"
+assert_not_contains "In tokens no longer shown" "$out" "In:"
+out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_not_contains "no cache segment before first API call" "$out" "Cache:"
+
 # Color assertions anchor on the escape code immediately before a filled bar
 # char, so they match the bar and not the percentage text
 GREEN_BAR=$'\033[32m█'
