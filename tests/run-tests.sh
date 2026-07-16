@@ -148,8 +148,17 @@ cache_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_d
 out=$(echo "$cache_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "cache hit rate computed from current_usage" "$out" "Cache: 90%"
 assert_not_contains "In tokens no longer shown" "$out" "In:"
-out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_not_contains "no cache segment before first API call" "$out" "Cache:"
+assert_not_contains "no placeholders once usage data arrives" "$out" "--%"
+
+# --- statusline-main.sh: pre-first-call skeleton ---
+
+out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
+assert_contains "skeleton shows 5h rate placeholder" "$out" "--% 5h"
+assert_contains "skeleton shows 7d rate placeholder" "$out" "--% 7d"
+assert_contains "skeleton shows context placeholders with real size" "$out" "Context: --% (--/200k)"
+assert_contains "skeleton shows cache placeholder" "$out" "Cache: --%"
+assert_contains "skeleton shows out placeholder" "$out" "Out: --"
+assert_not_contains "skeleton does not show Out: 0" "$out" "Out: 0"
 
 # Color assertions anchor on the escape code immediately before a filled bar
 # char, so they match the bar and not the percentage text

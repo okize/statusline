@@ -66,7 +66,7 @@ Output contract (three lines):
 
 - **Target runtime is macOS Bash 3.2.** No Bash 4+ features (e.g. associative arrays). OSC 8 hyperlinks are emitted with `printf '%b'`, not `echo -e` (unreliable for `\e` on this shell). Timestamps use BSD `date -r <epoch>`, which is **not portable to GNU/Linux `date`** — this status line is currently macOS-only.
 - **stdin JSON contract**: full field list at https://code.claude.com/docs/en/statusline. Several consumed fields are conditionally absent, and the code already guards them — preserve that:
-  - `context_window.current_usage` is `null` before the first API call and again after `/compact`. main.sh detects this (`context_initialized`) and renders an empty bar.
+  - `context_window.current_usage` is `null` before the first API call and again after `/compact`. main.sh detects this (`context_initialized`) and renders a skeleton line: empty bar plus `--` placeholders for context %, cache, out, and (when rate data is also absent) the 5h/7d rate limits. The structure matches the live line so nothing shifts when data arrives.
   - `rate_limits` (and each `five_hour` / `seven_day` window independently) appears only for Pro/Max subscribers after the first API response. Guarded with `jq`'s `// ""`.
   - `context_window.used_percentage` may be `null` early; main.sh falls back to computing it from `current_usage`.
   - `pr.*` is absent until an open PR is found for the branch and removed once it merges or closes; `pr.review_state` may be independently absent. `worktree.name` appears only in `--worktree` sessions; `workspace.git_worktree` for any linked worktree.
