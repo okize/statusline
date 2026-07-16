@@ -51,10 +51,10 @@ Claude Code pipes a JSON object to stdin containing session context (model, work
 
 | Usage | Color |
 |-------|-------|
-| 0-49% | Green |
-| 50-69% | Yellow |
-| 70-84% | Orange |
-| 85%+ | Red |
+| 0-19% | Green |
+| 20-34% | Yellow |
+| 35-49% | Orange |
+| 50%+ | Red |
 
 ## Rate limit colors
 

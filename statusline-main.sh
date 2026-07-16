@@ -11,11 +11,11 @@ source "$SCRIPT_DIR/lib.sh"
 
 # --- Display functions ---
 
-# Render the 20-char context progress bar with color-coded percentage
-# Colors: 0-50% green, 50-70% yellow, 70-85% orange, 85%+ red
+# Render the 10-char context progress bar (each char = 10%) with color-coded
+# percentage. Colors: 0-19% green, 20-34% yellow, 35-49% orange, 50%+ red
 build_context_display() {
   local pct="$1" size="$2" initialized="$3"
-  local bar_length=20
+  local bar_length=10
 
   local size_display
   if [ "$size" -ge 1000 ]; then
@@ -45,11 +45,11 @@ build_context_display() {
   fi
 
   local color
-  if [ "$pct_int" -lt 50 ]; then
+  if [ "$pct_int" -lt 20 ]; then
     color="$GREEN"
-  elif [ "$pct_int" -lt 70 ]; then
+  elif [ "$pct_int" -lt 35 ]; then
     color="$YELLOW"
-  elif [ "$pct_int" -lt 85 ]; then
+  elif [ "$pct_int" -lt 50 ]; then
     color="$ORANGE"
   else
     color="$RED"

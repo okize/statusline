@@ -125,6 +125,44 @@ assert_not_contains "full cwd absent when COLUMNS set" "$out" "$long_cwd"
 out=$(echo "$payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "full cwd shown when COLUMNS unset" "$out" "$long_cwd"
 
+# --- statusline-main.sh: context bar ---
+
+# 10-char bar (each char = 10%); colors: 0-19% green, 20-49% yellow, 50%+ red
+context_payload() {
+  echo "{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":$1,\"current_usage\":{\"input_tokens\":1000,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":10}}}"
+}
+
+out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
+assert_contains "10% renders 1 filled + 9 empty chars" "$out" "█░░░░░░░░░"
+assert_not_contains "bar is not wider than 10 chars at 10%" "$out" "░░░░░░░░░░░"
+
+uninit_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":0}}"
+out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
+assert_contains "uninitialized bar is 10 empty chars" "$out" "░░░░░░░░░░"
+assert_not_contains "uninitialized bar is not wider than 10 chars" "$out" "░░░░░░░░░░░"
+
+# Color assertions anchor on the escape code immediately before a filled bar
+# char, so they match the bar and not the percentage text
+GREEN_BAR=$'\033[32m█'
+YELLOW_BAR=$'\033[33m█'
+ORANGE_BAR=$'\033[38;5;208m█'
+RED_BAR=$'\033[31m█'
+
+out=$(context_payload 19 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "19% bar is green" "$out" "$GREEN_BAR"
+out=$(context_payload 20 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "20% bar is yellow" "$out" "$YELLOW_BAR"
+out=$(context_payload 34 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "34% bar is yellow" "$out" "$YELLOW_BAR"
+out=$(context_payload 35 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "35% bar is orange" "$out" "$ORANGE_BAR"
+out=$(context_payload 49 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "49% bar is orange" "$out" "$ORANGE_BAR"
+out=$(context_payload 50 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "50% bar is red" "$out" "$RED_BAR"
+out=$(context_payload 75 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "75% bar is red" "$out" "$RED_BAR"
+
 # --- statusline-git.sh: branch truncation via COLUMNS ---
 
 long_branch="feature/very-long-branch-name-for-truncation-testing"
