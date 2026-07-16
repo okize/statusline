@@ -203,12 +203,14 @@ if [ -n "$rate_five_pct" ] || [ -n "$rate_seven_pct" ]; then
   rate_limits_display="${rate_limits_display} | "
 fi
 
-# --- Worktree indicator ---
+# --- Location (directory or worktree tag) ---
+# Inside a worktree the [wt:name] tag replaces the directory: the two are
+# redundant and together eat too much horizontal space.
 # worktree.name is set for --worktree sessions; workspace.git_worktree for any
 # linked worktree (absent in the main working tree)
-worktree_display=""
+location_display="$current_folder"
 if [ -n "$worktree_name" ]; then
-  worktree_display=" ${ORANGE}[wt:${worktree_name}]${RESET}"
+  location_display="${ORANGE}[wt:${worktree_name}]${RESET}"
 fi
 
 # --- PR badge ---
@@ -241,7 +243,7 @@ git_stats_line=$(echo "$git_output" | sed -n '2p')
 # --- Output ---
 echo ""
 echo -e "${CYAN}${model_name}${RESET} | ${rate_limits_display}${context_display} • ${LIGHT_GREY}In: ${tokens_in_display}${RESET} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
-echo -e "${current_folder}${worktree_display} | ${git_branch_line}"
+echo -e "${location_display} | ${git_branch_line}"
 # Line 3: [PR badge |] git stats. printf '%b' for OSC 8 (echo -e unreliable here)
 stats_line="$git_stats_line"
 if [ -n "$pr_display" ]; then

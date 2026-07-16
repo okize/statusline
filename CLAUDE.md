@@ -59,7 +59,7 @@ Both scripts locate siblings via `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}
 
 Output contract (three lines):
 1. model | 5h/7d rate limits | context bar + `In:`/`Out:` token counts
-2. directory + `[wt:name]` tag (only inside a worktree) | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
+2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
 3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
 
 ## Conventions and gotchas

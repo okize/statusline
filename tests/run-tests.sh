@@ -211,10 +211,12 @@ assert_contains "git stats present alongside PR badge" "$out" "Unstaged:"
 linked_wt_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\",\"git_worktree\":\"feature-xyz\"}}"
 out=$(echo "$linked_wt_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "linked worktree shows tag from workspace.git_worktree" "$out" "wt:feature-xyz"
+assert_not_contains "worktree tag replaces the directory" "$out" "$TMP"
 
 session_wt_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"worktree\":{\"name\":\"my-feature\",\"path\":\"$TMP\"}}"
 out=$(echo "$session_wt_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "--worktree session shows tag from worktree.name" "$out" "wt:my-feature"
+assert_not_contains "worktree tag replaces the directory in --worktree session" "$out" "$TMP"
 
 out=$(echo "$no_pr_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_not_contains "no worktree tag outside a worktree" "$out" "wt:"
