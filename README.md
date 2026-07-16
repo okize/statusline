@@ -6,7 +6,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 **Line 1:** Model name | rate limit usage (5h/7d with reset times) | context window progress bar with token counts (in/out)
 
-**Line 2:** Current directory, worktree tag (`[wt:name]`, only inside a git worktree) | git branch, upstream tracking with ahead/behind counts (`↑N ↓M`, only when non-zero), and last commit time
+**Line 2:** Current directory, worktree tag (`[wt:name]`, only inside a git worktree) | git branch, ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero), and last commit time
 
 **Line 3:** Pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) | Shortcut ticket link (if branch matches `sc-#####`) | staged/unstaged file counts with insertion/deletion stats
 

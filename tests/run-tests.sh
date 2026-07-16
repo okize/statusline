@@ -85,11 +85,12 @@ git -C "$TMP/clone" push -q -u origin main 2>/dev/null
 out=$("$ROOT_DIR/statusline-git.sh" "$TMP/clone")
 assert_not_contains "in-sync branch shows no ahead marker" "$out" "↑"
 assert_not_contains "in-sync branch shows no behind marker" "$out" "↓"
+assert_not_contains "no Upstream label" "$out" "Upstream"
 assert_not_contains "no ticket link for a branch without a ticket id" "$out" "Shortcut:"
 
 git_commit "$TMP/clone" "local work"
 out=$("$ROOT_DIR/statusline-git.sh" "$TMP/clone" | strip_ansi)
-assert_contains "unpushed commit shows ahead count inside Upstream parens" "$out" "(Upstream: origin/main ↑1)"
+assert_contains "unpushed commit shows ahead count after branch name" "$out" "main ↑1 •"
 assert_not_contains "no behind marker when only ahead" "$out" "↓"
 
 git clone -q "$TMP/origin.git" "$TMP/clone2" 2>/dev/null
@@ -97,7 +98,7 @@ git_commit "$TMP/clone2" "remote work"
 git -C "$TMP/clone2" push -q origin main 2>/dev/null
 git -C "$TMP/clone" fetch -q origin
 out=$("$ROOT_DIR/statusline-git.sh" "$TMP/clone" | strip_ansi)
-assert_contains "diverged branch shows both counts inside Upstream parens" "$out" "(Upstream: origin/main ↑1 ↓1)"
+assert_contains "diverged branch shows both counts after branch name" "$out" "main ↑1 ↓1 •"
 
 # Exactly-2-lines contract: main.sh splits git.sh output positionally
 line_count=$(COLUMNS=60 "$ROOT_DIR/statusline-git.sh" "$TMP/clone" | wc -l | tr -d ' ')

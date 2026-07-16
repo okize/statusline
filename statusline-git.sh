@@ -3,7 +3,7 @@
 # Git status helper for statusline
 # Arguments: $1 = current working directory
 # Output (2 lines):
-#   Line 1: branch (Upstream: origin/...) (synced Xd ago)
+#   Line 1: branch [↑N ↓M] • synced Xd ago
 #   Line 2: [ticket link |] Staged/Unstaged stats [or "No pending changes"]
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
@@ -70,7 +70,6 @@ if run_git rev-parse --abbrev-ref --symbolic-full-name @{u} > /dev/null 2>&1; th
     upstream=""
   fi
 fi
-upstream_display="${upstream:-None}"
 
 # Ahead/behind vs upstream: rev-list --left-right --count outputs "behind<TAB>ahead"
 # (left = commits only in @{u}, right = commits only in HEAD)
@@ -148,8 +147,8 @@ if [ -n "$porcelain" ]; then
 fi
 
 # --- Output ---
-# Line 1: branch + upstream + sync status
-echo -e "${branch_display} (Upstream: ${upstream_display}${ahead_behind_display}) • ${sync_color}${sync_status}${RESET}"
+# Line 1: branch + ahead/behind + sync status
+echo -e "${branch_display}${ahead_behind_display} • ${sync_color}${sync_status}${RESET}"
 
 # Line 2: [ticket link |] change stats or "No pending changes"
 # Uses printf '%b' for OSC 8 hyperlinks (echo -e unreliable for \e on macOS bash 3.2)

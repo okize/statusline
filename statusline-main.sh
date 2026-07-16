@@ -3,7 +3,7 @@
 # Main status line for Claude Code
 # Receives JSON via stdin with session context
 # Calls statusline-git.sh which outputs 2 lines:
-#   Line 1: branch (Upstream: origin/...) (synced Xd ago)
+#   Line 1: branch [↑N ↓M] • synced Xd ago
 #   Line 2: [ticket link |] Staged/Unstaged stats [or "No pending changes"]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
