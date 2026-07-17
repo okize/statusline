@@ -91,6 +91,7 @@ format_reset_time() {
 input=$(cat)
 {
   read -r model_name
+  read -r effort_level
   read -r cwd
   read -r context_size
   read -r used_percentage
@@ -108,6 +109,7 @@ input=$(cat)
   read -r worktree_name
 } < <(echo "$input" | jq -r '
   .model.display_name,
+  (.effort.level // ""),
   .workspace.current_dir,
   (.context_window.context_window_size // 200000),
   (.context_window.used_percentage // 0),
@@ -124,6 +126,14 @@ input=$(cat)
   (.pr.review_state // ""),
   (.worktree.name // .workspace.git_worktree // "")
 ')
+
+# --- Reasoning effort ---
+# effort.level tracks the live session value (including /effort changes) and
+# is absent when the current model does not support the effort parameter
+effort_display=""
+if [ -n "$effort_level" ]; then
+  effort_display=" ${LIGHT_GREY}[${GREEN}${effort_level}${LIGHT_GREY}]${RESET}"
+fi
 
 # --- Current directory ---
 current_folder="${cwd/#$HOME/~}"
@@ -252,7 +262,7 @@ git_stats_line=$(echo "$git_output" | sed -n '2p')
 
 # --- Output ---
 echo ""
-echo -e "${GREEN}${model_name}${RESET} | ${rate_limits_display}${context_display}${cache_display} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
+echo -e "${GREEN}${model_name}${RESET}${effort_display} | ${rate_limits_display}${context_display}${cache_display} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
 echo -e "${location_display} | ${git_branch_line}"
 # Line 3: [PR badge |] git stats. printf '%b' for OSC 8 (echo -e unreliable here)
 stats_line="$git_stats_line"

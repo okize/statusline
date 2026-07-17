@@ -4,7 +4,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ## What it displays
 
-**Line 1:** Model name | rate limit usage (5h/7d with reset times) | context window gradient bar with bracketed percentage (`[42%]`) | cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) | rate limit usage (5h/7d with reset times) | context window gradient bar with bracketed percentage (`[42%]`) | cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 2:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree | git branch, ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero), and last commit time
 

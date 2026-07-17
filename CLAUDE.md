@@ -51,14 +51,14 @@ Keep runs fast. Claude Code debounces updates at 300ms and **cancels an in-fligh
 
 Flow: Claude Code → stdin JSON → `statusline-main.sh` → (shells out to) `statusline-git.sh` → stdout (3 lines).
 
-- **statusline-main.sh** — entry point. Reads all of stdin, extracts 16 values in a **single `jq` call** (model, cwd, context-window size/usage, rate-limit percentages/resets, PR number/url/review-state, worktree name), builds the context bar, rate-limit segment, worktree tag, and PR badge, then calls `statusline-git.sh "$cwd"` for the git lines.
+- **statusline-main.sh** — entry point. Reads all of stdin, extracts 17 values in a **single `jq` call** (model, effort level, cwd, context-window size/usage, rate-limit percentages/resets, PR number/url/review-state, worktree name), builds the context bar, rate-limit segment, worktree tag, and PR badge, then calls `statusline-git.sh "$cwd"` for the git lines.
 - **statusline-git.sh** — standalone git helper. Takes cwd as `$1` and prints **exactly two lines**. main.sh splits them positionally with `sed -n '1p'` / `'2p'`, so this script must always emit two lines (the second may be empty) — changing the line count silently breaks main.sh (the test suite pins this contract). It parses `git status --porcelain` once, runs one `rev-list --left-right --count` for ahead/behind when an upstream exists, runs `--shortstat` only when a file count is > 0, and uses `--no-optional-locks` throughout. Also owns the ticket-tracker section (see below).
 - **lib.sh** — shared library sourced by both scripts: ANSI palette section plus display helpers (`truncate_middle`).
 
 Both scripts locate siblings via `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`, so **all three files must stay in the same directory**.
 
 Output contract (three lines):
-1. model | 5h/7d rate limits | context gradient bar + `[N%]` | `Cache:` hit rate and `Out:` tokens (most recent API call)
+1. model + `[effort]` (only when the model supports it) | 5h/7d rate limits | context gradient bar + `[N%]` | `Cache:` hit rate and `Out:` tokens (most recent API call)
 2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
 3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
 
@@ -70,6 +70,7 @@ Output contract (three lines):
   - `rate_limits` (and each `five_hour` / `seven_day` window independently) appears only for Pro/Max subscribers after the first API response. Guarded with `jq`'s `// ""`.
   - `context_window.used_percentage` may be `null` early; main.sh falls back to computing it from `current_usage`.
   - `pr.*` is absent until an open PR is found for the branch and removed once it merges or closes; `pr.review_state` may be independently absent. `worktree.name` appears only in `--worktree` sessions; `workspace.git_worktree` for any linked worktree.
+  - `effort.level` reflects the live session effort (including mid-session `/effort` changes) and is absent when the current model does not support the effort parameter — the `[effort]` badge simply disappears.
 - **Width-aware truncation**: Claude Code (>= 2.1.153) sets `COLUMNS`/`LINES` before running the script (`tput cols` does not work — output is captured). main.sh truncates the directory to `COLUMNS/3` (floor 20) and statusline-git.sh truncates the displayed branch to `COLUMNS/4` (floor 15) via `truncate_middle`; no `COLUMNS` means no truncation. Truncate plain text only — never strings that already contain ANSI codes. Detection logic (e.g. ticket tracker matching) must use the full `$branch`, never `$branch_display`.
 - **Commit timestamps can be ahead of the system clock** — the sync-age math clamps negative diffs to 0 rather than rendering `synced -86400s ago`.
 - **Context percentage is input-only**: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (excludes `output_tokens`). Any manual percentage math must use this same formula to match Claude Code's `used_percentage`.

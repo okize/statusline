@@ -164,6 +164,16 @@ assert_not_contains "no placeholders once usage data arrives" "$out" "--%"
 out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "model name is green" "$out" $'\033[32mTest'
 
+# --- statusline-main.sh: reasoning effort ---
+
+# effort.level renders as [level] after the model name: grey brackets, value
+# in the model's green. Absent effort (unsupported model) renders nothing.
+effort_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":10,\"current_usage\":{\"input_tokens\":1000,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":10}},\"effort\":{\"level\":\"xhigh\"}}"
+out=$(echo "$effort_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "effort level bracketed after the model name" "$out" $'\033[32mTest\033[0m \033[38;5;248m[\033[32mxhigh\033[38;5;248m]'
+out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
+assert_not_contains "no effort bracket when effort is absent" "$out" "Test ["
+
 # --- statusline-main.sh: rate limit colors ---
 
 rate_payload() {
