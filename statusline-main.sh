@@ -252,7 +252,7 @@ git_stats_line=$(echo "$git_output" | sed -n '2p')
 
 # --- Output ---
 echo ""
-echo -e "${CYAN}${model_name}${RESET} | ${rate_limits_display}${context_display}${cache_display} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
+echo -e "${GREEN}${model_name}${RESET} | ${rate_limits_display}${context_display}${cache_display} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
 echo -e "${location_display} | ${git_branch_line}"
 # Line 3: [PR badge |] git stats. printf '%b' for OSC 8 (echo -e unreliable here)
 stats_line="$git_stats_line"

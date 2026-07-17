@@ -159,6 +159,11 @@ assert_contains "cache hit rate computed from current_usage" "$out" "Cache: 90%"
 assert_not_contains "In tokens no longer shown" "$out" "In:"
 assert_not_contains "no placeholders once usage data arrives" "$out" "--%"
 
+# --- statusline-main.sh: model name color ---
+
+out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "model name is green" "$out" $'\033[32mTest'
+
 # --- statusline-main.sh: rate limit colors ---
 
 rate_payload() {
