@@ -4,7 +4,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ## What it displays
 
-**Line 1:** Model name | rate limit usage (5h/7d with reset times) | context window progress bar | cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 1:** Model name | rate limit usage (5h/7d with reset times) | context window gradient bar with percentage | cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 2:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree | git branch, ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero), and last commit time
 
@@ -49,12 +49,11 @@ Claude Code pipes a JSON object to stdin containing session context (model, work
 
 ## Context window colors
 
-| Usage | Color |
-|-------|-------|
-| 0-19% | Green |
-| 20-34% | Yellow |
-| 35-49% | Orange |
-| 50%+ | Red |
+The 20-char bar (each char = 5%) is a fixed positional gradient (modeled on
+abtop's context meter): bright blue at 0% through steel, sage, and olive to
+gold at ~50% and deep orange at 100%. The fill reveals the gradient, and the
+percentage text takes the color at the fill's leading edge. Colors are fixed
+xterm-256 codes and do not remap with the terminal theme.
 
 ## Rate limit colors
 

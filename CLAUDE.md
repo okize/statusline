@@ -58,7 +58,7 @@ Flow: Claude Code → stdin JSON → `statusline-main.sh` → (shells out to) `s
 Both scripts locate siblings via `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`, so **all three files must stay in the same directory**.
 
 Output contract (three lines):
-1. model | 5h/7d rate limits | context bar + `Cache:` hit rate and `Out:` tokens (most recent API call)
+1. model | 5h/7d rate limits | context gradient bar + percentage | `Cache:` hit rate and `Out:` tokens (most recent API call)
 2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
 3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
 
@@ -74,7 +74,7 @@ Output contract (three lines):
 - **Commit timestamps can be ahead of the system clock** — the sync-age math clamps negative diffs to 0 rather than rendering `synced -86400s ago`.
 - **Context percentage is input-only**: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (excludes `output_tokens`). Any manual percentage math must use this same formula to match Claude Code's `used_percentage`.
 - **`resets_at` is Unix epoch seconds.**
-- **Color thresholds** live in main.sh functions: context bar at 50 / 70 / 85% (green / yellow / orange / red); rate limits at 70 / 85% (green / yellow / red).
+- **Colors** live in main.sh: the context bar is a fixed positional gradient (`CONTEXT_GRADIENT`, one xterm-256 code per char, blue -> gold -> orange); the fill reveals it and the percentage takes the leading-edge color. Rate limits threshold at 70 / 85% (blue / yellow / red).
 - **Ticket trackers** live in the "Ticket tracker detection" section of statusline-git.sh: each tracker is a `detect_ticket_<name>` function that inspects the branch name and sets `ticket_label` / `ticket_text` / `ticket_url`; `detect_ticket` chains them, first match wins. To add a tracker (Linear, Asana, ...), write a new detector and add one line to the chain. The Shortcut detector is Wistia-specific: branches matching `sc-#####` link to the hardcoded `wistia-pde` org.
 
 ## Dependencies

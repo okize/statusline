@@ -11,52 +11,42 @@ source "$SCRIPT_DIR/lib.sh"
 
 # --- Display functions ---
 
-# Render the 10-char context progress bar (each char = 10%) with color-coded
-# percentage. Colors: 0-19% green, 20-34% yellow, 35-49% orange, 50%+ red
-build_context_display() {
-  local pct="$1" size="$2" initialized="$3"
-  local bar_length=10
+# Render the 20-char context progress bar (each char = 5%). The filled chars
+# form a fixed blue -> gold -> orange positional gradient (modeled on abtop's
+# context meter): the fill reveals the gradient, and the percentage text takes
+# the color at the fill's leading edge. One xterm-256 code per bar char; these
+# are fixed colors and do not remap with the terminal theme.
+CONTEXT_GRADIENT=(33 33 74 67 109 108 143 179 178 220 220 220 214 214 214 208 208 208 202 202)
 
-  local size_display
-  if [ "$size" -ge 1000 ]; then
-    size_display="$((size / 1000))k"
-  else
-    size_display="$size"
-  fi
+build_context_display() {
+  local pct="$1" initialized="$2"
+  local bar_length=20
 
   # Skeleton: same structure as the live display, with -- placeholders
   if [ "$initialized" = false ]; then
     local bar=$(printf "%${bar_length}s" | tr ' ' '░')
-    echo -e "${LIGHT_GREY}${bar}${RESET} ${WHITE}Context:${RESET} ${LIGHT_GREY}--% (--/${size_display})${RESET}"
+    echo -e "${LIGHT_GREY}${bar}${RESET} ${WHITE}Context:${RESET} ${LIGHT_GREY}--%${RESET}"
     return
   fi
 
   local pct_int=${pct%.*}
   local filled=$((pct_int * bar_length / 100))
   [ "$filled" -gt "$bar_length" ] && filled=$bar_length
-  local empty=$((bar_length - filled))
-  local bar=$(printf "%${filled}s" | tr ' ' '█')$(printf "%${empty}s" | tr ' ' '░')
 
-  local tokens=$((size * pct_int / 100))
-  local tokens_display
-  if [ "$tokens" -ge 1000 ]; then
-    tokens_display="$((tokens / 1000))k"
-  else
-    tokens_display="$tokens"
-  fi
+  local bar="" i
+  for ((i = 0; i < bar_length; i++)); do
+    if [ "$i" -lt "$filled" ]; then
+      bar+="\033[38;5;${CONTEXT_GRADIENT[$i]}m█"
+    else
+      bar+="${LIGHT_GREY}░"
+    fi
+  done
 
-  local color
-  if [ "$pct_int" -lt 20 ]; then
-    color="$GREEN"
-  elif [ "$pct_int" -lt 35 ]; then
-    color="$YELLOW"
-  elif [ "$pct_int" -lt 50 ]; then
-    color="$ORANGE"
-  else
-    color="$RED"
-  fi
+  local label_idx=$filled
+  [ "$label_idx" -ge "$bar_length" ] && label_idx=$((bar_length - 1))
+  local label_color="\033[38;5;${CONTEXT_GRADIENT[$label_idx]}m"
 
-  echo -e "${color}${bar}${RESET} ${WHITE}Context:${RESET} ${color}${pct_int}% (${tokens_display}/${size_display})${RESET}"
+  echo -e "${bar}${RESET} ${WHITE}Context:${RESET} ${label_color}${pct_int}%${RESET}"
 }
 
 # Format token counts for display (e.g. 42000 -> "42k")
@@ -164,7 +154,7 @@ if [ "$used_percentage" -le 0 ] 2>/dev/null && [ "$context_initialized" = true ]
   fi
 fi
 
-context_display=$(build_context_display "$used_percentage" "$context_size" "$context_initialized")
+context_display=$(build_context_display "$used_percentage" "$context_initialized")
 
 # --- Cache hit rate (most recent API call) ---
 # cache_read / total input tokens. Drops sharply when the prompt cache went
