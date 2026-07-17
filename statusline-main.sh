@@ -132,7 +132,7 @@ input=$(cat)
 # is absent when the current model does not support the effort parameter
 effort_display=""
 if [ -n "$effort_level" ]; then
-  effort_display=" ${LIGHT_GREY}[${GREEN}${effort_level}${LIGHT_GREY}]${RESET}"
+  effort_display=" ${LIGHT_GREY}[${MUTED_GREEN}${effort_level}${LIGHT_GREY}]${RESET}"
 fi
 
 # --- Current directory ---
