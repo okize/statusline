@@ -191,14 +191,17 @@ assert_contains "gradient midpoint is gold" "$out" $'\033[38;5;220m■'
 assert_contains "gradient ends deep orange" "$out" $'\033[38;5;202m■'
 assert_not_contains "no tier-green bar chars" "$out" $'\033[32m■'
 
+# Brackets are grey; the value takes the color of the last filled segment
 out=$(context_payload 18 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "18% label is steel blue" "$out" $'\033[38;5;67m[18%]'
+assert_contains "18% value matches its last filled segment" "$out" $'\033[38;5;248m[\033[38;5;74m18%\033[38;5;248m]'
 out=$(context_payload 42 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "42% label is gold" "$out" $'\033[38;5;178m[42%]'
+assert_contains "42% value matches its last filled segment" "$out" $'\033[38;5;248m[\033[38;5;179m42%\033[38;5;248m]'
 out=$(context_payload 72 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "72% label is orange" "$out" $'\033[38;5;214m[72%]'
+assert_contains "72% value matches its last filled segment" "$out" $'\033[38;5;248m[\033[38;5;214m72%\033[38;5;248m]'
 out=$(context_payload 91 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "91% label is deep orange" "$out" $'\033[38;5;202m[91%]'
+assert_contains "91% value matches its last filled segment" "$out" $'\033[38;5;248m[\033[38;5;208m91%\033[38;5;248m]'
+out=$(context_payload 3 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "3% value is bright blue before any segment fills" "$out" $'\033[38;5;248m[\033[38;5;33m3%\033[38;5;248m]'
 
 # --- statusline-git.sh: branch truncation via COLUMNS ---
 

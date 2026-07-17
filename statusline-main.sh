@@ -14,9 +14,9 @@ source "$SCRIPT_DIR/lib.sh"
 # Render the context bar as 20 square segments (■, each = 5%); filled and
 # empty segments share the glyph and differ only by color. Filled segments
 # form a fixed blue -> gold -> orange positional gradient (modeled on abtop's
-# context meter): the fill reveals the gradient, and the percentage text takes
-# the color at the fill's leading edge. One xterm-256 code per segment; these
-# are fixed colors and do not remap with the terminal theme.
+# context meter): the fill reveals the gradient, and the percentage value
+# takes the color of the last filled segment, in grey brackets. One xterm-256
+# code per segment; fixed colors that do not remap with the terminal theme.
 CONTEXT_GRADIENT=(33 33 74 67 109 108 143 179 178 220 220 220 214 214 214 208 208 208 202 202)
 
 build_context_display() {
@@ -43,11 +43,11 @@ build_context_display() {
     fi
   done
 
-  local label_idx=$filled
-  [ "$label_idx" -ge "$bar_length" ] && label_idx=$((bar_length - 1))
+  local label_idx=$((filled - 1))
+  [ "$label_idx" -lt 0 ] && label_idx=0
   local label_color="\033[38;5;${CONTEXT_GRADIENT[$label_idx]}m"
 
-  echo -e "${bar}${RESET} ${label_color}[${pct_int}%]${RESET}"
+  echo -e "${bar}${RESET} ${LIGHT_GREY}[${label_color}${pct_int}%${LIGHT_GREY}]${RESET}"
 }
 
 # Format token counts for display (e.g. 42000 -> "42k")

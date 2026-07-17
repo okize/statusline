@@ -53,9 +53,9 @@ The bar is 20 square segments (`■`, each = 5%); filled and empty segments
 share the glyph and differ only by color. Filled segments form a fixed
 positional gradient (modeled on abtop's context meter): bright blue at 0%
 through steel, sage, and olive to gold at ~50% and deep orange at 100%. The
-fill reveals the gradient, and the bracketed percentage takes the color at
-the fill's leading edge. Colors are fixed xterm-256 codes and do not remap
-with the terminal theme.
+fill reveals the gradient, and the percentage value takes the color of the
+last filled segment, wrapped in grey brackets. Colors are fixed xterm-256
+codes and do not remap with the terminal theme.
 
 ## Rate limit colors
 
