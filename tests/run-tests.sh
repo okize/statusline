@@ -135,15 +135,20 @@ context_payload() {
 }
 
 out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
-assert_contains "10% renders 2 filled + 18 empty chars" "$out" "██░░░░░░░░░░░░░░░░░░"
-assert_not_contains "bar is not wider than 20 chars at 10%" "$out" "░░░░░░░░░░░░░░░░░░░"
+assert_contains "bar renders 20 square segments" "$out" "■■■■■■■■■■■■■■■■■■■■"
+assert_not_contains "bar is not wider than 20 segments" "$out" "■■■■■■■■■■■■■■■■■■■■■"
 assert_contains "percentage shown without token fraction" "$out" "Context: 10%"
 assert_not_contains "token fraction no longer shown" "$out" "/200k)"
 
+# Filled vs empty segments share the ■ glyph and differ only by color, so
+# fill level is asserted via the per-segment color codes
+out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "10% fills exactly 2 segments" "$out" $'\033[38;5;33m■\033[38;5;33m■\033[38;5;248m■'
+
 uninit_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":0}}"
-out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
-assert_contains "uninitialized bar is 20 empty chars" "$out" "░░░░░░░░░░░░░░░░░░░░"
-assert_not_contains "uninitialized bar is not wider than 20 chars" "$out" "░░░░░░░░░░░░░░░░░░░░░"
+out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "uninitialized bar is 20 grey segments" "$out" $'\033[38;5;248m■■■■■■■■■■■■■■■■■■■■'
+assert_not_contains "uninitialized bar is not wider than 20 segments" "$out" "■■■■■■■■■■■■■■■■■■■■■"
 
 # --- statusline-main.sh: cache hit rate ---
 
@@ -180,10 +185,10 @@ assert_not_contains "skeleton does not show Out: 0" "$out" "Out: 0"
 # Gradient assertions anchor on the escape code immediately before a filled
 # bar char (or before the percentage text for leading-edge label colors)
 out=$(context_payload 100 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "gradient starts bright blue" "$out" $'\033[38;5;33m█'
-assert_contains "gradient midpoint is gold" "$out" $'\033[38;5;220m█'
-assert_contains "gradient ends deep orange" "$out" $'\033[38;5;202m█'
-assert_not_contains "no tier-green bar chars" "$out" $'\033[32m█'
+assert_contains "gradient starts bright blue" "$out" $'\033[38;5;33m■'
+assert_contains "gradient midpoint is gold" "$out" $'\033[38;5;220m■'
+assert_contains "gradient ends deep orange" "$out" $'\033[38;5;202m■'
+assert_not_contains "no tier-green bar chars" "$out" $'\033[32m■'
 
 out=$(context_payload 18 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
 assert_contains "18% label is steel blue" "$out" $'\033[38;5;67m18%'

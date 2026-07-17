@@ -11,10 +11,11 @@ source "$SCRIPT_DIR/lib.sh"
 
 # --- Display functions ---
 
-# Render the 20-char context progress bar (each char = 5%). The filled chars
+# Render the context bar as 20 square segments (■, each = 5%); filled and
+# empty segments share the glyph and differ only by color. Filled segments
 # form a fixed blue -> gold -> orange positional gradient (modeled on abtop's
 # context meter): the fill reveals the gradient, and the percentage text takes
-# the color at the fill's leading edge. One xterm-256 code per bar char; these
+# the color at the fill's leading edge. One xterm-256 code per segment; these
 # are fixed colors and do not remap with the terminal theme.
 CONTEXT_GRADIENT=(33 33 74 67 109 108 143 179 178 220 220 220 214 214 214 208 208 208 202 202)
 
@@ -24,7 +25,7 @@ build_context_display() {
 
   # Skeleton: same structure as the live display, with -- placeholders
   if [ "$initialized" = false ]; then
-    local bar=$(printf "%${bar_length}s" | tr ' ' '░')
+    local bar=$(printf "%${bar_length}s" | tr ' ' '■')
     echo -e "${LIGHT_GREY}${bar}${RESET} ${WHITE}Context:${RESET} ${LIGHT_GREY}--%${RESET}"
     return
   fi
@@ -36,9 +37,9 @@ build_context_display() {
   local bar="" i
   for ((i = 0; i < bar_length; i++)); do
     if [ "$i" -lt "$filled" ]; then
-      bar+="\033[38;5;${CONTEXT_GRADIENT[$i]}m█"
+      bar+="\033[38;5;${CONTEXT_GRADIENT[$i]}m■"
     else
-      bar+="${LIGHT_GREY}░"
+      bar+="${LIGHT_GREY}■"
     fi
   done
 
