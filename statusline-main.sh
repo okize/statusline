@@ -26,7 +26,7 @@ build_context_display() {
   # Skeleton: same structure as the live display, with -- placeholders
   if [ "$initialized" = false ]; then
     local bar=$(printf "%${bar_length}s" | tr ' ' '■')
-    echo -e "${LIGHT_GREY}${bar}${RESET} ${WHITE}Context:${RESET} ${LIGHT_GREY}--%${RESET}"
+    echo -e "${LIGHT_GREY}${bar} [--%]${RESET}"
     return
   fi
 
@@ -47,7 +47,7 @@ build_context_display() {
   [ "$label_idx" -ge "$bar_length" ] && label_idx=$((bar_length - 1))
   local label_color="\033[38;5;${CONTEXT_GRADIENT[$label_idx]}m"
 
-  echo -e "${bar}${RESET} ${WHITE}Context:${RESET} ${label_color}${pct_int}%${RESET}"
+  echo -e "${bar}${RESET} ${label_color}[${pct_int}%]${RESET}"
 }
 
 # Format token counts for display (e.g. 42000 -> "42k")

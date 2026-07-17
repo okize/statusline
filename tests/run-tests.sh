@@ -137,7 +137,8 @@ context_payload() {
 out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
 assert_contains "bar renders 20 square segments" "$out" "■■■■■■■■■■■■■■■■■■■■"
 assert_not_contains "bar is not wider than 20 segments" "$out" "■■■■■■■■■■■■■■■■■■■■■"
-assert_contains "percentage shown without token fraction" "$out" "Context: 10%"
+assert_contains "percentage bracketed after the bar" "$out" "■ [10%]"
+assert_not_contains "no Context label" "$out" "Context:"
 assert_not_contains "token fraction no longer shown" "$out" "/200k)"
 
 # Filled vs empty segments share the ■ glyph and differ only by color, so
@@ -176,7 +177,7 @@ assert_contains "rate limit usage 85%+ is red" "$out" $'\033[31m90% 5h'
 out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
 assert_contains "skeleton shows 5h rate placeholder" "$out" "--% 5h"
 assert_contains "skeleton shows 7d rate placeholder" "$out" "--% 7d"
-assert_contains "skeleton shows context placeholder" "$out" "Context: --%"
+assert_contains "skeleton shows context placeholder" "$out" "[--%]"
 assert_not_contains "skeleton drops the token fraction" "$out" "(--/"
 assert_contains "skeleton shows cache placeholder" "$out" "Cache: --%"
 assert_contains "skeleton shows out placeholder" "$out" "Out: --"
@@ -191,13 +192,13 @@ assert_contains "gradient ends deep orange" "$out" $'\033[38;5;202m■'
 assert_not_contains "no tier-green bar chars" "$out" $'\033[32m■'
 
 out=$(context_payload 18 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "18% label is steel blue" "$out" $'\033[38;5;67m18%'
+assert_contains "18% label is steel blue" "$out" $'\033[38;5;67m[18%]'
 out=$(context_payload 42 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "42% label is gold" "$out" $'\033[38;5;178m42%'
+assert_contains "42% label is gold" "$out" $'\033[38;5;178m[42%]'
 out=$(context_payload 72 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "72% label is orange" "$out" $'\033[38;5;214m72%'
+assert_contains "72% label is orange" "$out" $'\033[38;5;214m[72%]'
 out=$(context_payload 91 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "91% label is deep orange" "$out" $'\033[38;5;202m91%'
+assert_contains "91% label is deep orange" "$out" $'\033[38;5;202m[91%]'
 
 # --- statusline-git.sh: branch truncation via COLUMNS ---
 

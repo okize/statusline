@@ -58,7 +58,7 @@ Flow: Claude Code → stdin JSON → `statusline-main.sh` → (shells out to) `s
 Both scripts locate siblings via `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`, so **all three files must stay in the same directory**.
 
 Output contract (three lines):
-1. model | 5h/7d rate limits | context gradient bar + percentage | `Cache:` hit rate and `Out:` tokens (most recent API call)
+1. model | 5h/7d rate limits | context gradient bar + `[N%]` | `Cache:` hit rate and `Out:` tokens (most recent API call)
 2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
 3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
 
