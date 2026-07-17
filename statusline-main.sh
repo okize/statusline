@@ -26,7 +26,7 @@ build_context_display() {
   # Skeleton: same structure as the live display, with -- placeholders
   if [ "$initialized" = false ]; then
     local bar=$(printf "%${bar_length}s" | tr ' ' '■')
-    echo -e "${LIGHT_GREY}${bar} [--%]${RESET}"
+    echo -e "${DIM_GREY}${bar}${RESET} ${LIGHT_GREY}[--%]${RESET}"
     return
   fi
 
@@ -39,7 +39,7 @@ build_context_display() {
     if [ "$i" -lt "$filled" ]; then
       bar+="\033[38;5;${CONTEXT_GRADIENT[$i]}m■"
     else
-      bar+="${LIGHT_GREY}■"
+      bar+="${DIM_GREY}■"
     fi
   done
 

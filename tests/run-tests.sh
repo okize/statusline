@@ -144,11 +144,11 @@ assert_not_contains "token fraction no longer shown" "$out" "/200k)"
 # Filled vs empty segments share the ■ glyph and differ only by color, so
 # fill level is asserted via the per-segment color codes
 out=$(context_payload 10 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "10% fills exactly 2 segments" "$out" $'\033[38;5;33m■\033[38;5;33m■\033[38;5;248m■'
+assert_contains "10% fills exactly 2 segments" "$out" $'\033[38;5;33m■\033[38;5;33m■\033[38;5;242m■'
 
 uninit_payload="{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":0}}"
 out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
-assert_contains "uninitialized bar is 20 grey segments" "$out" $'\033[38;5;248m■■■■■■■■■■■■■■■■■■■■'
+assert_contains "uninitialized bar is 20 dim segments" "$out" $'\033[38;5;242m■■■■■■■■■■■■■■■■■■■■'
 assert_not_contains "uninitialized bar is not wider than 20 segments" "$out" "■■■■■■■■■■■■■■■■■■■■■"
 
 # --- statusline-main.sh: cache hit rate ---
