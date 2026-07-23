@@ -1,0 +1,2 @@
+# Built binary (each machine builds its own; see Makefile / README).
+/statusline
