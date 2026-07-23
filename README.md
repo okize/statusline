@@ -1,5 +1,7 @@
 # Claude Code Statusline
 
+[![CI](https://github.com/okize/statusline/actions/workflows/ci.yml/badge.svg)](https://github.com/okize/statusline/actions/workflows/ci.yml)
+
 Custom status line for Claude Code that displays model info, context window usage, rate limits, and git status directly in the terminal.
 
 ## What it displays
@@ -14,12 +16,18 @@ When Claude Code provides the terminal width (`COLUMNS`, v2.1.153+), long direct
 
 ## Files
 
+A single Go binary: a thin `main.go` that calls into the `internal/statusline` package.
+
 | File | Purpose |
 |------|---------|
-| `statusline-main.sh` | Entry point. Parses JSON from stdin, builds context and rate limit display, calls `statusline-git.sh`, prints output. |
-| `statusline-git.sh` | Git helper. Outputs branch/upstream/sync info and staged/unstaged change stats. Detects ticket-tracker IDs (currently Shortcut) from branch names. |
-| `lib.sh` | Shared library: ANSI palette and display helpers used by both scripts. |
-| `tests/run-tests.sh` | Test suite. Run directly; exits non-zero on failure. |
+| `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
+| `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
+| `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
+| `internal/statusline/render.go` | Line 1 (model, effort, rate limits, context bar, cache, out), the location/worktree tag, and the PR badge. |
+| `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
+| `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
+| `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
+| `internal/statusline/*_test.go` | Test suite. Run with `go test ./...`; exits non-zero on failure. |
 
 ## Docs
 
@@ -27,25 +35,60 @@ Official documentation: https://code.claude.com/docs/en/statusline
 
 ## Setup
 
-Clone this repo, then add the following to your Claude Code `settings.json` (user or project level), pointing `command` at the cloned location:
+Clone this repo and build the binary:
+
+```bash
+make build   # or: go build -o statusline .
+```
+
+The binary is gitignored — each machine builds its own, so it stays portable
+across architectures and OSes. If this repo is managed by your dotfiles, add
+`make -C ~/src/statusline build` to your bootstrap step.
+
+Then add the following to your Claude Code `settings.json` (user or project
+level), pointing `command` at the built binary:
 
 ```json
 {
   "statusLine": {
     "type": "command",
-    "command": "~/src/statusline/statusline-main.sh"
+    "command": "~/src/statusline/statusline"
   }
 }
 ```
 
-Claude Code pipes a JSON object to stdin containing session context (model, workspace, context window usage, rate limits). The script parses this with `jq` and renders the status line.
+Claude Code pipes a JSON object to stdin containing session context (model,
+workspace, context window usage, rate limits). The binary parses it and renders
+the status line.
+
+## Configuration
+
+Shortcut ticket links (for branches matching `sc-#####`) need an org slug. Set
+it via an environment variable in your shell profile; without it, no ticket link
+is shown:
+
+```bash
+export STATUSLINE_SHORTCUT_ORG=your-org   # https://app.shortcut.com/your-org/...
+```
 
 ## Dependencies
 
-- `jq` (JSON parsing)
-- `git` (repository status)
-- `date` (timestamp formatting)
-- Bash 3.2+ (macOS default works)
+- Go 1.24+ (build-time only)
+- `git` (repository status; invoked at runtime)
+
+No `jq`, `date`, or Bash needed. Because timestamps use Go's `time` package
+instead of BSD `date -r`, the binary is cross-platform (not macOS-only).
+
+## Development
+
+```bash
+make test    # go test ./...
+make vet     # go vet ./...
+make lint    # golangci-lint run (install: https://golangci-lint.run/welcome/install/)
+```
+
+GitHub Actions runs the tests, `go vet`, gofmt, and golangci-lint on every push
+and PR (`.github/workflows/ci.yml`).
 
 ## Context window colors
 
