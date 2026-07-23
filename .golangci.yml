@@ -1,0 +1,13 @@
+# golangci-lint v2 configuration. See https://golangci-lint.run.
+version: "2"
+
+linters:
+  # The "standard" set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - misspell   # common misspellings in comments and strings
+    - unconvert  # redundant type conversions
+
+formatters:
+  enable:
+    - gofmt
