@@ -76,9 +76,6 @@ export STATUSLINE_SHORTCUT_ORG=your-org   # https://app.shortcut.com/your-org/..
 - Go 1.24+ (build-time only)
 - `git` (repository status; invoked at runtime)
 
-No `jq`, `date`, or Bash needed. Because timestamps use Go's `time` package
-instead of BSD `date -r`, the binary is cross-platform (not macOS-only).
-
 ## Development
 
 ```bash
@@ -90,29 +87,17 @@ make lint    # golangci-lint run (install: https://golangci-lint.run/welcome/ins
 GitHub Actions runs the tests, `go vet`, gofmt, and golangci-lint on every push
 and PR (`.github/workflows/ci.yml`).
 
-## Context window colors
+### Preview locally
 
-The bar is 20 square segments (`■`, each = 5%); filled and empty segments
-share the glyph and differ only by color, with unfilled segments in dim grey. Filled segments form a fixed
-positional gradient (modeled on abtop's context meter): bright blue at 0%
-through steel, sage, and olive to gold at ~50% and deep orange at 100%. The
-fill reveals the gradient, and the percentage value takes the color of the
-last filled segment, wrapped in grey brackets. Colors are fixed xterm-256
-codes and do not remap with the terminal theme.
+Render the status line by piping in the sample payload:
 
-## Rate limit colors
+```bash
+go run . < examples/stdin-payload-example.json
+```
 
-| Usage | Color |
-|-------|-------|
-| 0-69% | Blue |
-| 70-84% | Yellow |
-| 85%+ | Red |
-
-## PR review state colors
-
-| State | Color |
-|-------|-------|
-| approved | Muted green |
-| changes_requested | Muted red |
-| draft | Light grey |
-| pending / other | Yellow |
+`examples/stdin-payload-example.json` is a full example of the stdin contract.
+Edit its values to preview different states — `context_window.used_percentage`
+drives the context bar (the committed sample sets it to `100` for a full bar),
+`rate_limits` the 5h/7d segments, `pr` the PR badge. The location and git lines
+read the real repository at `workspace.current_dir`, so point that at an actual
+checkout to see branch, ahead/behind, and ticket output.
