@@ -30,7 +30,7 @@ func TestContextBar(t *testing.T) {
 	assertNotContains(t, "token fraction no longer shown", out, "/200k)")
 
 	out2 := run(t, contextPayload(tmp, 10), 0)
-	assertContains(t, "10% fills exactly 2 segments", out2, "\x1b[38;5;33m■\x1b[38;5;33m■\x1b[38;5;242m■")
+	assertContains(t, "10% fills exactly 2 segments", out2, "\x1b[38;2;58;133;247m■\x1b[38;2;86;150;212m■\x1b[38;5;242m■")
 
 	out3 := run(t, uninitPayload(tmp), 0)
 	assertContains(t, "uninitialized bar is 20 dim segments", out3, "\x1b[38;5;242m■■■■■■■■■■■■■■■■■■■■")
@@ -83,28 +83,24 @@ func TestPreFirstCallSkeleton(t *testing.T) {
 func TestGradient(t *testing.T) {
 	tmp := t.TempDir()
 	out := run(t, contextPayload(tmp, 100), 0)
-	assertContains(t, "gradient starts bright blue", out, "\x1b[38;5;33m■")
-	assertContains(t, "gradient midpoint is gold", out, "\x1b[38;5;220m■")
-	assertContains(t, "gradient ends deep orange", out, "\x1b[38;5;202m■")
-	assertNotContains(t, "no tier-green bar chars", out, "\x1b[32m■")
-	// The 4th square keeps green at 175 like its neighbors (74 and 109) so it
-	// blends into the ramp; the old 67 dipped green to 135 and stood out.
-	assertContains(t, "4th square uses the corrected cyan", out, "\x1b[38;5;73m■")
-	assertNotContains(t, "old standout slate-blue square is gone", out, "\x1b[38;5;67m■")
+	assertContains(t, "gradient starts blue (truecolor)", out, "\x1b[38;2;58;133;247m■")
+	assertContains(t, "gradient passes through yellow", out, "\x1b[38;2;255;255;0m■")
+	assertContains(t, "gradient ends orange-red", out, "\x1b[38;2;237;106;44m■")
+	assertNotContains(t, "gradient no longer emits xterm-256 codes", out, "\x1b[38;5;33m■")
 }
 
 func TestPercentLabelColor(t *testing.T) {
 	tmp := t.TempDir()
 	assertContains(t, "18% value matches its last filled segment",
-		run(t, contextPayload(tmp, 18), 0), "\x1b[38;5;248m[\x1b[38;5;74m18%\x1b[38;5;248m]")
+		run(t, contextPayload(tmp, 18), 0), "\x1b[38;5;248m[\x1b[38;2;114;168;176m18%\x1b[38;5;248m]")
 	assertContains(t, "42% value matches its last filled segment",
-		run(t, contextPayload(tmp, 42), 0), "\x1b[38;5;248m[\x1b[38;5;179m42%\x1b[38;5;248m]")
+		run(t, contextPayload(tmp, 42), 0), "\x1b[38;5;248m[\x1b[38;2;255;255;0m42%\x1b[38;5;248m]")
 	assertContains(t, "72% value matches its last filled segment",
-		run(t, contextPayload(tmp, 72), 0), "\x1b[38;5;248m[\x1b[38;5;214m72%\x1b[38;5;248m]")
+		run(t, contextPayload(tmp, 72), 0), "\x1b[38;5;248m[\x1b[38;2;255;165;0m72%\x1b[38;5;248m]")
 	assertContains(t, "91% value matches its last filled segment",
-		run(t, contextPayload(tmp, 91), 0), "\x1b[38;5;248m[\x1b[38;5;208m91%\x1b[38;5;248m]")
-	assertContains(t, "3% value is bright blue before any segment fills",
-		run(t, contextPayload(tmp, 3), 0), "\x1b[38;5;248m[\x1b[38;5;33m3%\x1b[38;5;248m]")
+		run(t, contextPayload(tmp, 91), 0), "\x1b[38;5;248m[\x1b[38;2;243;126;29m91%\x1b[38;5;248m]")
+	assertContains(t, "3% value is blue before any segment fills",
+		run(t, contextPayload(tmp, 3), 0), "\x1b[38;5;248m[\x1b[38;2;58;133;247m3%\x1b[38;5;248m]")
 }
 
 func TestPRBadge(t *testing.T) {

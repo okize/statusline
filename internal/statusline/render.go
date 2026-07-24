@@ -105,7 +105,7 @@ func buildContextDisplay(pct int, initialized bool) string {
 	var bar strings.Builder
 	for i := 0; i < barLength; i++ {
 		if i < filled {
-			bar.WriteString("\x1b[38;5;" + strconv.Itoa(contextGradient[i]) + "m■")
+			bar.WriteString(fgRGB(contextGradient[i]) + "■")
 		} else {
 			bar.WriteString(dimGrey + "■")
 		}
@@ -115,7 +115,7 @@ func buildContextDisplay(pct int, initialized bool) string {
 	if labelIdx < 0 {
 		labelIdx = 0
 	}
-	labelColor := "\x1b[38;5;" + strconv.Itoa(contextGradient[labelIdx]) + "m"
+	labelColor := fgRGB(contextGradient[labelIdx])
 
 	return bar.String() + reset + " " + lightGrey + "[" + labelColor + strconv.Itoa(pct) + "%" + lightGrey + "]" + reset
 }

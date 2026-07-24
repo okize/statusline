@@ -23,9 +23,23 @@ const (
 	reset      = "\x1b[0m"
 )
 
-// contextGradient is the fixed positional blue -> gold -> orange gradient, one
-// xterm-256 code per bar segment (modeled on abtop's context meter).
-var contextGradient = [20]int{33, 33, 74, 73, 109, 108, 143, 179, 178, 220, 220, 220, 214, 214, 214, 208, 208, 208, 202, 202}
+// contextGradient is the fixed positional context-bar gradient: one 24-bit RGB
+// triple per segment, a smooth blue -> yellow -> orange ramp. These are the exact
+// values the gradient-string demo emits across four stops (#3a85f7, yellow,
+// orange, #ed6a2c). Rendered as truecolor SGR (\x1b[38;2;R;G;Bm) so the 20
+// segments interpolate smoothly instead of banding into xterm-256 steps.
+var contextGradient = [20][3]int{
+	{58, 133, 247}, {86, 150, 212}, {114, 168, 176}, {142, 185, 141},
+	{171, 203, 106}, {199, 220, 71}, {227, 238, 35}, {255, 255, 0},
+	{255, 240, 0}, {255, 225, 0}, {255, 210, 0}, {255, 195, 0},
+	{255, 180, 0}, {255, 165, 0}, {252, 155, 7}, {249, 145, 15},
+	{246, 136, 22}, {243, 126, 29}, {240, 116, 37}, {237, 106, 44},
+}
+
+// fgRGB returns the 24-bit truecolor foreground SGR sequence for an RGB triple.
+func fgRGB(c [3]int) string {
+	return "\x1b[38;2;" + strconv.Itoa(c[0]) + ";" + strconv.Itoa(c[1]) + ";" + strconv.Itoa(c[2]) + "m"
+}
 
 // truncateMiddle shortens s to at most max characters, replacing the middle
 // with "…" so both ends stay readable. Counts runes (not display columns), like
