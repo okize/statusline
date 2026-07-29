@@ -1,2 +1,5 @@
 # Built binary (each machine builds its own; see Makefile / README).
 /statusline
+
+# Coverage profile from `make coverage`.
+/coverage.out
