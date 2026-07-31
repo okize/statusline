@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Shared ANSI color definitions for statusline scripts
+# Shared ANSI color definitions and display helpers for statusline scripts
 
 CYAN='\033[36m'
 GREEN='\033[32m'
@@ -13,3 +13,22 @@ LINK_BLUE='\033[94m'
 MUTED_GREEN='\033[38;5;108m'
 MUTED_RED='\033[38;5;167m'
 RESET='\033[0m'
+
+# Truncate a string to at most $2 characters, replacing the middle with "…"
+# so both the start and end stay readable. Must be called on plain text
+# (before ANSI codes are added), otherwise escape sequences get cut mid-code.
+# Assumes a UTF-8 locale: under LC_ALL=C, ${#s} and substring expansion are
+# byte-based and can split multibyte characters. Counts characters, not
+# display columns, so wide (e.g. CJK) characters may exceed the target width.
+truncate_middle() {
+  local s="$1" max="$2"
+  local len=${#s}
+  if [ "$len" -le "$max" ] || [ "$max" -lt 5 ]; then
+    printf '%s' "$s"
+    return
+  fi
+  local keep=$((max - 1))
+  local head=$(((keep + 1) / 2))
+  local tail=$((keep - head))
+  printf '%s…%s' "${s:0:head}" "${s:len - tail}"
+}

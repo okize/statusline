@@ -12,7 +12,15 @@ User-facing docs (what each line shows, color tables) live in `README.md`; this 
 
 ## Develop / test
 
-No build step, test framework, or linter is configured. Test by piping a sample stdin payload to the entry point, exactly as Claude Code invokes it:
+No build step is configured. Run the test suite first — it covers sync-age clamping, ahead/behind counts, truncation, the PR badge, the worktree tag, and the two-line output contract:
+
+```bash
+./tests/run-tests.sh
+```
+
+It builds throwaway git repos under `$TMPDIR` and runs both scripts against them; no network needed, exits non-zero on failure. Add a failing test there before changing behavior.
+
+For manual checks, pipe a sample stdin payload to the entry point, exactly as Claude Code invokes it:
 
 ```bash
 echo '{
@@ -43,16 +51,16 @@ Keep runs fast. Claude Code debounces updates at 300ms and **cancels an in-fligh
 
 Flow: Claude Code → stdin JSON → `statusline-main.sh` → (shells out to) `statusline-git.sh` → stdout (3 lines).
 
-- **statusline-main.sh** — entry point. Reads all of stdin, extracts 12 values in a **single `jq` call** (model, cwd, context-window size/usage, rate-limit percentages/resets), builds the context bar and rate-limit segment, then calls `statusline-git.sh "$cwd"` for the git lines.
-- **statusline-git.sh** — standalone git helper. Takes cwd as `$1` and prints **exactly two lines**. main.sh splits them positionally with `sed -n '1p'` / `'2p'`, so this script must always emit two lines (the second may be empty) — changing the line count silently breaks main.sh. It parses `git status --porcelain` once, then runs `--shortstat` only when a file count is > 0, and uses `--no-optional-locks` throughout.
-- **colors.sh** — shared ANSI palette, sourced by both scripts.
+- **statusline-main.sh** — entry point. Reads all of stdin, extracts 16 values in a **single `jq` call** (model, cwd, context-window size/usage, rate-limit percentages/resets, PR number/url/review-state, worktree name), builds the context bar, rate-limit segment, worktree tag, and PR badge, then calls `statusline-git.sh "$cwd"` for the git lines.
+- **statusline-git.sh** — standalone git helper. Takes cwd as `$1` and prints **exactly two lines**. main.sh splits them positionally with `sed -n '1p'` / `'2p'`, so this script must always emit two lines (the second may be empty) — changing the line count silently breaks main.sh (the test suite pins this contract). It parses `git status --porcelain` once, runs one `rev-list --left-right --count` for ahead/behind when an upstream exists, runs `--shortstat` only when a file count is > 0, and uses `--no-optional-locks` throughout.
+- **colors.sh** — shared ANSI palette plus the `truncate_middle` display helper, sourced by both scripts.
 
 Both scripts locate siblings via `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`, so **all three files must stay in the same directory**.
 
 Output contract (three lines):
 1. model | 5h/7d rate limits | context bar + `In:`/`Out:` token counts
-2. directory | git branch, upstream, relative sync time
-3. Shortcut link (only if branch matches `sc-#####`) + staged/unstaged stats, or `No pending changes`
+2. directory + `[wt:name]` tag (only inside a worktree) | git branch, upstream + `↑N ↓M` ahead/behind (only when non-zero), relative sync time
+3. `PR #N (state)` badge (only when an open PR exists) + Shortcut link (only if branch matches `sc-#####`) + staged/unstaged stats, or `No pending changes`
 
 ## Conventions and gotchas
 
@@ -61,6 +69,9 @@ Output contract (three lines):
   - `context_window.current_usage` is `null` before the first API call and again after `/compact`. main.sh detects this (`context_initialized`) and renders an empty bar.
   - `rate_limits` (and each `five_hour` / `seven_day` window independently) appears only for Pro/Max subscribers after the first API response. Guarded with `jq`'s `// ""`.
   - `context_window.used_percentage` may be `null` early; main.sh falls back to computing it from `current_usage`.
+  - `pr.*` is absent until an open PR is found for the branch and removed once it merges or closes; `pr.review_state` may be independently absent. `worktree.name` appears only in `--worktree` sessions; `workspace.git_worktree` for any linked worktree.
+- **Width-aware truncation**: Claude Code (>= 2.1.153) sets `COLUMNS`/`LINES` before running the script (`tput cols` does not work — output is captured). main.sh truncates the directory to `COLUMNS/3` (floor 20) and statusline-git.sh truncates the displayed branch to `COLUMNS/4` (floor 15) via `truncate_middle`; no `COLUMNS` means no truncation. Truncate plain text only — never strings that already contain ANSI codes. Detection logic (e.g. Shortcut ticket matching) must use the full `$branch`, never `$branch_display`.
+- **Commit timestamps can be ahead of the system clock** — the sync-age math clamps negative diffs to 0 rather than rendering `synced -86400s ago`.
 - **Context percentage is input-only**: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (excludes `output_tokens`). Any manual percentage math must use this same formula to match Claude Code's `used_percentage`.
 - **`resets_at` is Unix epoch seconds.**
 - **Color thresholds** live in main.sh functions: context bar at 50 / 70 / 85% (green / yellow / orange / red); rate limits at 70 / 85% (green / yellow / red).

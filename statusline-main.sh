@@ -24,6 +24,10 @@ input=$(cat)
   read -r rate_seven_pct
   read -r rate_five_reset
   read -r rate_seven_reset
+  read -r pr_number
+  read -r pr_url
+  read -r pr_state
+  read -r worktree_name
 } < <(echo "$input" | jq -r '
   .model.display_name,
   .workspace.current_dir,
@@ -36,10 +40,23 @@ input=$(cat)
   (.rate_limits.five_hour.used_percentage // ""),
   (.rate_limits.seven_day.used_percentage // ""),
   (.rate_limits.five_hour.resets_at // ""),
-  (.rate_limits.seven_day.resets_at // "")
+  (.rate_limits.seven_day.resets_at // ""),
+  (.pr.number // ""),
+  (.pr.url // ""),
+  (.pr.review_state // ""),
+  (.worktree.name // .workspace.git_worktree // "")
 ')
 
 current_folder="${cwd/#$HOME/~}"
+
+# Width-aware truncation: Claude Code (>= 2.1.153) sets COLUMNS to the terminal
+# width before running the script (tput cols does not work; output is captured).
+# Without COLUMNS the path is shown untruncated.
+if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
+  folder_max=$((COLUMNS / 3))
+  [ "$folder_max" -lt 20 ] && folder_max=20
+  current_folder=$(truncate_middle "$current_folder" "$folder_max")
+fi
 
 # --- Context window display ---
 # Renders a 20-char progress bar with color-coded percentage
@@ -183,6 +200,36 @@ if [ -n "$rate_five_pct" ] || [ -n "$rate_seven_pct" ]; then
   rate_limits_display="${rate_limits_display} | "
 fi
 
+# --- Worktree indicator ---
+# worktree.name is set for --worktree sessions; workspace.git_worktree for any
+# linked worktree (absent in the main working tree)
+worktree_display=""
+if [ -n "$worktree_name" ]; then
+  worktree_display=" ${ORANGE}[wt:${worktree_name}]${RESET}"
+fi
+
+# --- PR badge ---
+# pr.* mirrors the open PR for the current branch (absent until a PR is found,
+# and removed once it merges or closes). review_state may be independently absent.
+pr_display=""
+if [ -n "$pr_number" ]; then
+  pr_text="PR #${pr_number}"
+  if [ -n "$pr_url" ]; then
+    # OSC 8 hyperlink; rendered with printf '%b' below
+    pr_text="\033]8;;${pr_url}\a${pr_text}\033]8;;\a"
+  fi
+  pr_display="${LINK_BLUE}${pr_text}${RESET}"
+  if [ -n "$pr_state" ]; then
+    case "$pr_state" in
+      approved) pr_state_color="$MUTED_GREEN" ;;
+      changes_requested) pr_state_color="$MUTED_RED" ;;
+      draft) pr_state_color="$LIGHT_GREY" ;;
+      *) pr_state_color="$YELLOW" ;;
+    esac
+    pr_display="${pr_display} ${pr_state_color}(${pr_state})${RESET}"
+  fi
+fi
+
 # --- Git info (2 lines: branch+sync, stats) ---
 git_output=$("$SCRIPT_DIR/statusline-git.sh" "$cwd")
 git_branch_line=$(echo "$git_output" | sed -n '1p')
@@ -191,7 +238,16 @@ git_stats_line=$(echo "$git_output" | sed -n '2p')
 # --- Output ---
 echo ""
 echo -e "${CYAN}${model_name}${RESET} | ${rate_limits_display}${context_display} • ${LIGHT_GREY}In: ${tokens_in_display}${RESET} • ${LIGHT_GREY}Out: ${tokens_out_display}${RESET}"
-echo -e "${current_folder} | ${git_branch_line}"
-if [ -n "$git_stats_line" ]; then
-  echo -e "${git_stats_line}"
+echo -e "${current_folder}${worktree_display} | ${git_branch_line}"
+# Line 3: [PR badge |] git stats. printf '%b' for OSC 8 (echo -e unreliable here)
+stats_line="$git_stats_line"
+if [ -n "$pr_display" ]; then
+  if [ -n "$stats_line" ]; then
+    stats_line="${pr_display} | ${stats_line}"
+  else
+    stats_line="$pr_display"
+  fi
+fi
+if [ -n "$stats_line" ]; then
+  printf '%b\n' "$stats_line"
 fi

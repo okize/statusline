@@ -21,6 +21,16 @@ run_git() { git --no-optional-locks -C "$cwd" "$@"; }
 
 branch=$(run_git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
+# Width-aware truncation of the displayed branch name (COLUMNS is set by
+# Claude Code >= 2.1.153). Detection logic below (e.g. Shortcut ticket
+# matching) must keep using the full $branch, not $branch_display.
+branch_display="$branch"
+if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
+  branch_max=$((COLUMNS / 4))
+  [ "$branch_max" -lt 15 ] && branch_max=15
+  branch_display=$(truncate_middle "$branch" "$branch_max")
+fi
+
 # Upstream detection: check exit code explicitly since a deleted remote branch
 # can cause git to output literal "@{u}" instead of erroring on some versions
 upstream=""
@@ -33,12 +43,27 @@ if run_git rev-parse --abbrev-ref --symbolic-full-name @{u} > /dev/null 2>&1; th
 fi
 upstream_display="${upstream:-None}"
 
+# Ahead/behind vs upstream: rev-list --left-right --count outputs "behind<TAB>ahead"
+# (left = commits only in @{u}, right = commits only in HEAD)
+ahead_behind_display=""
+if [ -n "$upstream" ]; then
+  counts=$(run_git rev-list --left-right --count '@{u}...HEAD' 2>/dev/null)
+  if [ -n "$counts" ]; then
+    read -r behind ahead <<< "$counts"
+    [ "$ahead" -gt 0 ] 2>/dev/null && ahead_behind_display="${ahead_behind_display} ${MUTED_GREEN}↑${ahead}${RESET}"
+    [ "$behind" -gt 0 ] 2>/dev/null && ahead_behind_display="${ahead_behind_display} ${MUTED_RED}↓${behind}${RESET}"
+  fi
+fi
+
 # Last commit time -> relative sync status
 last_commit_time=$(run_git log -1 --format=%ct 2>/dev/null)
 diff_seconds=0
 sync_color="$LIGHT_GREY"
 if [ -n "$last_commit_time" ]; then
   diff_seconds=$(($(date +%s) - last_commit_time))
+  # Clamp: commit timestamps can be ahead of the system clock, which would
+  # otherwise render a negative age like "synced -86400s ago"
+  [ $diff_seconds -lt 0 ] && diff_seconds=0
   if [ $diff_seconds -lt 60 ]; then
     sync_status="synced ${diff_seconds}s ago"
   elif [ $diff_seconds -lt 3600 ]; then
@@ -100,7 +125,7 @@ if [ -n "$sc_number" ]; then
 fi
 
 # Line 1: branch + upstream + sync status
-echo -e "${branch} (Upstream: ${upstream_display}) • ${sync_color}${sync_status}${RESET}"
+echo -e "${branch_display} (Upstream: ${upstream_display}${ahead_behind_display}) • ${sync_color}${sync_status}${RESET}"
 
 # Line 2: [Shortcut |] change stats or "No pending changes"
 # Uses printf '%b' for OSC 8 hyperlinks (echo -e unreliable for \e on macOS bash 3.2)
