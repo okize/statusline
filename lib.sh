@@ -6,6 +6,7 @@
 # --- ANSI palette ---
 
 CYAN='\033[36m'
+BLUE='\033[34m'
 GREEN='\033[32m'
 YELLOW='\033[33m'
 ORANGE='\033[38;5;208m'

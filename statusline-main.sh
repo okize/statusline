@@ -69,11 +69,11 @@ format_tokens() {
   fi
 }
 
-# Rate limit color thresholds: 0-70% green, 70-85% yellow, 85%+ red
+# Rate limit color thresholds: 0-70% blue, 70-85% yellow, 85%+ red
 rate_limit_color() {
   local pct_int="$1"
   if [ "$pct_int" -lt 70 ]; then
-    echo "$GREEN"
+    echo "$BLUE"
   elif [ "$pct_int" -lt 85 ]; then
     echo "$YELLOW"
   else

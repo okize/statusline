@@ -150,6 +150,19 @@ assert_contains "cache hit rate computed from current_usage" "$out" "Cache: 90%"
 assert_not_contains "In tokens no longer shown" "$out" "In:"
 assert_not_contains "no placeholders once usage data arrives" "$out" "--%"
 
+# --- statusline-main.sh: rate limit colors ---
+
+rate_payload() {
+  echo "{\"model\":{\"display_name\":\"Test\"},\"workspace\":{\"current_dir\":\"$TMP\"},\"context_window\":{\"context_window_size\":200000,\"used_percentage\":50,\"current_usage\":{\"input_tokens\":1000,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":10}},\"rate_limits\":{\"five_hour\":{\"used_percentage\":$1}}}"
+}
+
+out=$(rate_payload 8 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "rate limit usage below 70% is blue" "$out" $'\033[34m8% 5h'
+out=$(rate_payload 75 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "rate limit usage 70-84% is yellow" "$out" $'\033[33m75% 5h'
+out=$(rate_payload 90 | env -u COLUMNS "$ROOT_DIR/statusline-main.sh")
+assert_contains "rate limit usage 85%+ is red" "$out" $'\033[31m90% 5h'
+
 # --- statusline-main.sh: pre-first-call skeleton ---
 
 out=$(echo "$uninit_payload" | env -u COLUMNS "$ROOT_DIR/statusline-main.sh" | strip_ansi)
