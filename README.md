@@ -17,8 +17,8 @@ When Claude Code provides the terminal width (`COLUMNS`, v2.1.153+), long direct
 | File | Purpose |
 |------|---------|
 | `statusline-main.sh` | Entry point. Parses JSON from stdin, builds context and rate limit display, calls `statusline-git.sh`, prints output. |
-| `statusline-git.sh` | Git helper. Outputs branch/upstream/sync info and staged/unstaged change stats. Detects Shortcut ticket IDs from branch names. |
-| `colors.sh` | Shared ANSI color definitions and display helpers used by both scripts. |
+| `statusline-git.sh` | Git helper. Outputs branch/upstream/sync info and staged/unstaged change stats. Detects ticket-tracker IDs (currently Shortcut) from branch names. |
+| `lib.sh` | Shared library: ANSI palette and display helpers used by both scripts. |
 | `tests/run-tests.sh` | Test suite. Run directly; exits non-zero on failure. |
 
 ## Docs

@@ -4,9 +4,9 @@
 # Arguments: $1 = current working directory
 # Output (2 lines):
 #   Line 1: branch (Upstream: origin/...) (synced Xd ago)
-#   Line 2: [Shortcut: link |] Staged/Unstaged stats [or "No pending changes"]
+#   Line 2: [ticket link |] Staged/Unstaged stats [or "No pending changes"]
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/colors.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 cwd="$1"
 
@@ -19,11 +19,39 @@ fi
 # Helper: all git commands quote $cwd to handle paths with spaces
 run_git() { git --no-optional-locks -C "$cwd" "$@"; }
 
+# --- Ticket tracker detection ---
+# Maps a branch name to a ticket link. Each tracker is a detect_ticket_<name>
+# function that inspects the branch name in $1 and, on match, sets:
+#   ticket_label  display prefix (e.g. "Shortcut")
+#   ticket_text   link text (e.g. "sc-12345")
+#   ticket_url    link target
+# To add a tracker (Linear, Asana, ...), write a detect_ticket_<name> function
+# and add it to the chain in detect_ticket. First match wins.
+
+detect_ticket_shortcut() {
+  local match num
+  match=$(echo "$1" | grep -oE 'sc-[0-9]+' | head -1)
+  [ -z "$match" ] && return 1
+  num=$(echo "$match" | grep -oE '[0-9]+')
+  ticket_label="Shortcut"
+  ticket_text="$match"
+  ticket_url="https://app.shortcut.com/wistia-pde/story/${num}"
+}
+
+detect_ticket() {
+  ticket_label=""
+  ticket_text=""
+  ticket_url=""
+  detect_ticket_shortcut "$1" && return 0
+  return 1
+}
+
+# --- Branch ---
 branch=$(run_git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # Width-aware truncation of the displayed branch name (COLUMNS is set by
-# Claude Code >= 2.1.153). Detection logic below (e.g. Shortcut ticket
-# matching) must keep using the full $branch, not $branch_display.
+# Claude Code >= 2.1.153). Detection logic (e.g. ticket tracker matching)
+# must keep using the full $branch, not $branch_display.
 branch_display="$branch"
 if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
   branch_max=$((COLUMNS / 4))
@@ -31,6 +59,7 @@ if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
   branch_display=$(truncate_middle "$branch" "$branch_max")
 fi
 
+# --- Upstream ---
 # Upstream detection: check exit code explicitly since a deleted remote branch
 # can cause git to output literal "@{u}" instead of erroring on some versions
 upstream=""
@@ -55,6 +84,7 @@ if [ -n "$upstream" ]; then
   fi
 fi
 
+# --- Sync status ---
 # Last commit time -> relative sync status
 last_commit_time=$(run_git log -1 --format=%ct 2>/dev/null)
 diff_seconds=0
@@ -80,6 +110,7 @@ else
   sync_status="no commits"
 fi
 
+# --- Change stats ---
 # Parse porcelain once for file counts (replaces separate diff --name-only calls)
 # Porcelain format: XY filename (X=staged status, Y=unstaged status)
 #   Staged: first char is [MADRC]
@@ -116,25 +147,19 @@ if [ -n "$porcelain" ]; then
   fi
 fi
 
-# Shortcut ticket detection from branch name (matches sc-##### pattern)
-sc_number=$(echo "$branch" | grep -oE 'sc-[0-9]+' | head -1)
-sc_url=""
-if [ -n "$sc_number" ]; then
-  ticket_num=$(echo "$sc_number" | grep -oE '[0-9]+')
-  sc_url="https://app.shortcut.com/wistia-pde/story/${ticket_num}"
-fi
-
+# --- Output ---
 # Line 1: branch + upstream + sync status
 echo -e "${branch_display} (Upstream: ${upstream_display}${ahead_behind_display}) • ${sync_color}${sync_status}${RESET}"
 
-# Line 2: [Shortcut |] change stats or "No pending changes"
+# Line 2: [ticket link |] change stats or "No pending changes"
 # Uses printf '%b' for OSC 8 hyperlinks (echo -e unreliable for \e on macOS bash 3.2)
-if [ -n "$sc_url" ] && [ -n "$change_stats" ]; then
-  printf '%b\n' "Shortcut: ${LINK_BLUE} \033]8;;${sc_url}\a${sc_number}\033]8;;\a${RESET} | ${change_stats}"
-elif [ -n "$sc_url" ]; then
-  printf '%b\n' "Shortcut: ${LINK_BLUE} \033]8;;${sc_url}\a${sc_number}\033]8;;\a${RESET} | ${LIGHT_GREY}No pending changes${RESET}"
-elif [ -n "$change_stats" ]; then
-  echo -e "${change_stats}"
+detect_ticket "$branch"
+ticket_link=""
+if [ -n "$ticket_url" ]; then
+  ticket_link="${ticket_label}: ${LINK_BLUE} \033]8;;${ticket_url}\a${ticket_text}\033]8;;\a${RESET} | "
+fi
+if [ -n "$change_stats" ]; then
+  printf '%b\n' "${ticket_link}${change_stats}"
 else
-  echo -e "${LIGHT_GREY}No pending changes${RESET}"
+  printf '%b\n' "${ticket_link}${LIGHT_GREY}No pending changes${RESET}"
 fi

@@ -4,62 +4,14 @@
 # Receives JSON via stdin with session context
 # Calls statusline-git.sh which outputs 2 lines:
 #   Line 1: branch (Upstream: origin/...) (synced Xd ago)
-#   Line 2: [Shortcut: link |] Staged/Unstaged stats [or "No pending changes"]
+#   Line 2: [ticket link |] Staged/Unstaged stats [or "No pending changes"]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/colors.sh"
+source "$SCRIPT_DIR/lib.sh"
 
-# --- Parse JSON input (single jq call, one value per line) ---
-input=$(cat)
-{
-  read -r model_name
-  read -r cwd
-  read -r context_size
-  read -r used_percentage
-  read -r current_input
-  read -r current_cache_create
-  read -r current_cache_read
-  read -r current_output
-  read -r rate_five_pct
-  read -r rate_seven_pct
-  read -r rate_five_reset
-  read -r rate_seven_reset
-  read -r pr_number
-  read -r pr_url
-  read -r pr_state
-  read -r worktree_name
-} < <(echo "$input" | jq -r '
-  .model.display_name,
-  .workspace.current_dir,
-  (.context_window.context_window_size // 200000),
-  (.context_window.used_percentage // 0),
-  (.context_window.current_usage.input_tokens // 0),
-  (.context_window.current_usage.cache_creation_input_tokens // 0),
-  (.context_window.current_usage.cache_read_input_tokens // 0),
-  (.context_window.current_usage.output_tokens // 0),
-  (.rate_limits.five_hour.used_percentage // ""),
-  (.rate_limits.seven_day.used_percentage // ""),
-  (.rate_limits.five_hour.resets_at // ""),
-  (.rate_limits.seven_day.resets_at // ""),
-  (.pr.number // ""),
-  (.pr.url // ""),
-  (.pr.review_state // ""),
-  (.worktree.name // .workspace.git_worktree // "")
-')
+# --- Display functions ---
 
-current_folder="${cwd/#$HOME/~}"
-
-# Width-aware truncation: Claude Code (>= 2.1.153) sets COLUMNS to the terminal
-# width before running the script (tput cols does not work; output is captured).
-# Without COLUMNS the path is shown untruncated.
-if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
-  folder_max=$((COLUMNS / 3))
-  [ "$folder_max" -lt 20 ] && folder_max=20
-  current_folder=$(truncate_middle "$current_folder" "$folder_max")
-fi
-
-# --- Context window display ---
-# Renders a 20-char progress bar with color-coded percentage
+# Render the 20-char context progress bar with color-coded percentage
 # Colors: 0-50% green, 50-70% yellow, 70-85% orange, 85%+ red
 build_context_display() {
   local pct="$1" size="$2" initialized="$3"
@@ -106,6 +58,94 @@ build_context_display() {
   echo -e "${color}${bar}${RESET} ${WHITE}Context:${RESET} ${color}${pct_int}% (${tokens_display}/${size_display})${RESET}"
 }
 
+# Format token counts for display (e.g. 42000 -> "42k")
+format_tokens() {
+  local t="$1"
+  if [ "$t" -ge 1000 ]; then
+    echo "$((t / 1000))k"
+  else
+    echo "$t"
+  fi
+}
+
+# Rate limit color thresholds: 0-70% green, 70-85% yellow, 85%+ red
+rate_limit_color() {
+  local pct_int="$1"
+  if [ "$pct_int" -lt 70 ]; then
+    echo "$GREEN"
+  elif [ "$pct_int" -lt 85 ]; then
+    echo "$YELLOW"
+  else
+    echo "$RED"
+  fi
+}
+
+# Format a reset timestamp (Unix epoch seconds) for display
+# For 5h window: "2:50 PM"
+# For 7d window: "4/3/25 5:50 PM"
+format_reset_time() {
+  local epoch="$1"
+  local window="$2"  # "5h" or "7d"
+  [ -z "$epoch" ] && return
+
+  if [ "$window" = "5h" ]; then
+    date -r "$epoch" +"%-I:%M %p" 2>/dev/null
+  else
+    date -r "$epoch" +"%-m/%-d/%y %-I:%M %p" 2>/dev/null
+  fi
+}
+
+# --- Parse JSON input (single jq call, one value per line) ---
+input=$(cat)
+{
+  read -r model_name
+  read -r cwd
+  read -r context_size
+  read -r used_percentage
+  read -r current_input
+  read -r current_cache_create
+  read -r current_cache_read
+  read -r current_output
+  read -r rate_five_pct
+  read -r rate_seven_pct
+  read -r rate_five_reset
+  read -r rate_seven_reset
+  read -r pr_number
+  read -r pr_url
+  read -r pr_state
+  read -r worktree_name
+} < <(echo "$input" | jq -r '
+  .model.display_name,
+  .workspace.current_dir,
+  (.context_window.context_window_size // 200000),
+  (.context_window.used_percentage // 0),
+  (.context_window.current_usage.input_tokens // 0),
+  (.context_window.current_usage.cache_creation_input_tokens // 0),
+  (.context_window.current_usage.cache_read_input_tokens // 0),
+  (.context_window.current_usage.output_tokens // 0),
+  (.rate_limits.five_hour.used_percentage // ""),
+  (.rate_limits.seven_day.used_percentage // ""),
+  (.rate_limits.five_hour.resets_at // ""),
+  (.rate_limits.seven_day.resets_at // ""),
+  (.pr.number // ""),
+  (.pr.url // ""),
+  (.pr.review_state // ""),
+  (.worktree.name // .workspace.git_worktree // "")
+')
+
+# --- Current directory ---
+current_folder="${cwd/#$HOME/~}"
+
+# Width-aware truncation: Claude Code (>= 2.1.153) sets COLUMNS to the terminal
+# width before running the script (tput cols does not work; output is captured).
+# Without COLUMNS the path is shown untruncated.
+if [ -n "$COLUMNS" ] && [ "$COLUMNS" -gt 0 ] 2>/dev/null; then
+  folder_max=$((COLUMNS / 3))
+  [ "$folder_max" -lt 20 ] && folder_max=20
+  current_folder=$(truncate_middle "$current_folder" "$folder_max")
+fi
+
+# --- Context window display ---
 # Determine if context has been initialized (current_usage is null before first API call)
 context_initialized=true
 if [ "$current_input" -eq 0 ] && [ "$current_cache_create" -eq 0 ] && [ "$current_cache_read" -eq 0 ] && [ "$current_output" -eq 0 ]; then
@@ -125,16 +165,6 @@ fi
 
 context_display=$(build_context_display "$used_percentage" "$context_size" "$context_initialized")
 
-# Format token counts for display (e.g. 42000 -> "42k")
-format_tokens() {
-  local t="$1"
-  if [ "$t" -ge 1000 ]; then
-    echo "$((t / 1000))k"
-  else
-    echo "$t"
-  fi
-}
-
 # Current context window token counts (from most recent API call)
 context_in=$((current_input + current_cache_create + current_cache_read))
 tokens_in_display=$(format_tokens "$context_in")
@@ -142,33 +172,6 @@ tokens_out_display=$(format_tokens "$current_output")
 
 # --- Subscription rate limit display ---
 # Shows 5-hour and/or 7-day usage when available (subscribers only, after first API call)
-# Colors: 0-70% green, 70-85% yellow, 85%+ red
-rate_limit_color() {
-  local pct_int="$1"
-  if [ "$pct_int" -lt 70 ]; then
-    echo "$GREEN"
-  elif [ "$pct_int" -lt 85 ]; then
-    echo "$YELLOW"
-  else
-    echo "$RED"
-  fi
-}
-
-# Format a reset timestamp (ISO 8601) for display
-# For 5h window: "2:50 PM"
-# For 7d window: "4/3/25 5:50 PM"
-format_reset_time() {
-  local epoch="$1"
-  local window="$2"  # "5h" or "7d"
-  [ -z "$epoch" ] && return
-
-  if [ "$window" = "5h" ]; then
-    date -r "$epoch" +"%-I:%M %p" 2>/dev/null
-  else
-    date -r "$epoch" +"%-m/%-d/%y %-I:%M %p" 2>/dev/null
-  fi
-}
-
 rate_limits_display=""
 if [ -n "$rate_five_pct" ] || [ -n "$rate_seven_pct" ]; then
   rate_parts=()

@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# Shared ANSI color definitions and display helpers for statusline scripts
+# Shared library for the statusline scripts: ANSI palette and display helpers.
+# Sourced by statusline-main.sh and statusline-git.sh.
+
+# --- ANSI palette ---
 
 CYAN='\033[36m'
 GREEN='\033[32m'
@@ -13,6 +16,8 @@ LINK_BLUE='\033[94m'
 MUTED_GREEN='\033[38;5;108m'
 MUTED_RED='\033[38;5;167m'
 RESET='\033[0m'
+
+# --- Display helpers ---
 
 # Truncate a string to at most $2 characters, replacing the middle with "…"
 # so both the start and end stay readable. Must be called on plain text

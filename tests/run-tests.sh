@@ -85,6 +85,7 @@ git -C "$TMP/clone" push -q -u origin main 2>/dev/null
 out=$("$ROOT_DIR/statusline-git.sh" "$TMP/clone")
 assert_not_contains "in-sync branch shows no ahead marker" "$out" "↑"
 assert_not_contains "in-sync branch shows no behind marker" "$out" "↓"
+assert_not_contains "no ticket link for a branch without a ticket id" "$out" "Shortcut:"
 
 git_commit "$TMP/clone" "local work"
 out=$("$ROOT_DIR/statusline-git.sh" "$TMP/clone" | strip_ansi)
@@ -104,9 +105,9 @@ assert_equals "statusline-git.sh outputs exactly 2 lines for a repo with upstrea
 line_count=$("$ROOT_DIR/statusline-git.sh" "$TMP" | wc -l | tr -d ' ')
 assert_equals "statusline-git.sh outputs exactly 2 lines for a non-repo" "$line_count" "2"
 
-# --- colors.sh: truncate_middle helper ---
+# --- lib.sh: truncate_middle helper ---
 
-source "$ROOT_DIR/colors.sh"
+source "$ROOT_DIR/lib.sh"
 assert_equals "truncate_middle shortens long string with middle ellipsis" \
   "$(truncate_middle "abcdefghijklmnop" 9)" "abcd…mnop"
 assert_equals "truncate_middle leaves short string unchanged" \
