@@ -65,7 +65,7 @@ func renderMain(in *Input, columns int) string {
 
 	prDisplay := buildPRBadge(in)
 
-	gitBranchLine, gitStatsLine := renderGitLines(in.CWD, columns)
+	gitBranchLine, gitStatsLine, gitSyncLine := renderGitLines(in.CWD, columns)
 
 	// Line 2 leads with the rate-limit windows when they exist; without them
 	// (API-key users) it starts at the cache segment rather than a bare bullet.
@@ -76,13 +76,13 @@ func renderMain(in *Input, columns int) string {
 
 	var sb strings.Builder
 	sb.WriteString("\n")
-	sb.WriteString(green + in.ModelName + reset + effortDisplay + " | " + contextDisplay + "\n")
+	sb.WriteString(green + in.ModelName + reset + effortDisplay + " • " + contextDisplay + "\n")
 	sb.WriteString(usageLine + "\n")
-	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine) + "\n")
+	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine, gitSyncLine) + "\n")
 	return sb.String()
 }
 
-// joinSegments joins the non-empty segments of the location line with " | ",
+// joinSegments joins the non-empty segments of the location line with " • ",
 // so an absent PR badge or a clean worktree leaves no dangling separator.
 func joinSegments(segments ...string) string {
 	var present []string
@@ -91,7 +91,7 @@ func joinSegments(segments ...string) string {
 			present = append(present, s)
 		}
 	}
-	return strings.Join(present, " | ")
+	return strings.Join(present, " • ")
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form
@@ -135,7 +135,7 @@ func buildContextDisplay(pct int, initialized bool) string {
 // the separator that attaches this to the rest of the line.
 func buildRateDisplay(in *Input, initialized bool) string {
 	if !initialized && in.RateFivePct == nil && in.RateSevenPct == nil {
-		return lightGrey + "--% 5h" + reset + " | " + lightGrey + "--% 7d" + reset
+		return lightGrey + "--% 5h" + reset + " • " + lightGrey + "--% 7d" + reset
 	}
 	if in.RateFivePct == nil && in.RateSevenPct == nil {
 		return ""
@@ -148,7 +148,7 @@ func buildRateDisplay(in *Input, initialized bool) string {
 	if in.RateSevenPct != nil {
 		parts = append(parts, rateSegment(*in.RateSevenPct, "7d", in.RateSevenReset))
 	}
-	return strings.Join(parts, " | ")
+	return strings.Join(parts, " • ")
 }
 
 func rateSegment(pct float64, window string, resetAt *int64) string {

@@ -65,7 +65,7 @@ func renderLines(t *testing.T, jsonStr string, columns int) []string {
 // gitLines renders the two git lines joined with a newline, so contains-checks
 // that span both lines work like the bash `out` variable did.
 func gitLines(cwd string, columns int) string {
-	l1, l2 := renderGitLines(cwd, columns)
+	l1, l2 := RenderGit(cwd, columns)
 	return l1 + "\n" + l2
 }
 

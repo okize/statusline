@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -170,6 +171,10 @@ func TestLineLayout(t *testing.T) {
 	assertContains(t, "line 3 keeps the location", line3, tmp)
 	assertContains(t, "git line merges into line 3", line3, "not a git repo")
 	assertContains(t, "PR badge merges into line 3", line3, "PR #1234")
+
+	for i, line := range []string{line1, line2, line3} {
+		assertNotContains(t, fmt.Sprintf("line %d separates with bullets, not pipes", i+1), line, "|")
+	}
 }
 
 // With no rate-limit data (API-key users) line 2 leads with the cache segment
@@ -192,7 +197,54 @@ func TestLineLayoutSkeleton(t *testing.T) {
 	assertContains(t, "skeleton bar stays on line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [--%]")
 	assertNotContains(t, "skeleton rate placeholders leave line 1", line1, "--% 5h")
 	assertEqual(t, "skeleton line 2 holds rate, cache and out placeholders", line2,
-		"--% 5h | --% 7d • Cache: --% • Out: --")
+		"--% 5h • --% 7d • Cache: --% • Out: --")
+}
+
+// Line 3 orders its segments location, branch, PR, change stats, sync age —
+// the sync age trails the line rather than riding along with the branch.
+func TestLocationLineSegmentOrder(t *testing.T) {
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	clone := filepath.Join(base, "clone")
+	gitRun(t, "", nil, "init", "-q", "--bare", "-b", "main", origin)
+	gitRun(t, "", nil, "clone", "-q", origin, clone)
+	gitRun(t, clone, nil, "symbolic-ref", "HEAD", "refs/heads/main")
+	gitCommit(t, clone, "base", nil)
+	gitRun(t, clone, nil, "push", "-q", "-u", "origin", "main")
+	if err := os.WriteFile(filepath.Join(clone, "untracked.txt"), []byte("dirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"pr":{"number":9,"url":"https://github.com/okize/statusline/pull/9","review_state":"pending"}}`, clone)
+	lines := renderLines(t, payload, 0)
+	line3 := stripANSI(lines[len(lines)-1])
+
+	branchAt := strings.Index(line3, "main")
+	prAt := strings.Index(line3, "PR #9")
+	statsAt := strings.Index(line3, "Unstaged:")
+	syncAt := strings.Index(line3, "synced ")
+	for name, idx := range map[string]int{"branch": branchAt, "PR badge": prAt, "stats": statsAt, "sync age": syncAt} {
+		if idx < 0 {
+			t.Fatalf("%s missing from line 3: %q", name, line3)
+		}
+	}
+
+	if !(branchAt < prAt && prAt < statsAt && statsAt < syncAt) {
+		t.Errorf("expected order branch < PR < stats < sync on line 3, got %q", line3)
+	}
+	assertNotContains(t, "sync age no longer trails the branch", line3, "main • synced")
+}
+
+// The `statusline git <dir>` subcommand keeps its two-line shape, with the sync
+// age still attached to the branch line.
+func TestRenderGitSubcommandKeepsSyncOnBranchLine(t *testing.T) {
+	repo := t.TempDir()
+	gitInit(t, repo)
+	gitCommit(t, repo, "base", nil)
+
+	l1, l2 := RenderGit(repo, 0)
+	assertContains(t, "subcommand line 1 keeps branch and sync together", stripANSI(l1), " • synced ")
+	assertContains(t, "subcommand line 2 still carries the change stats", stripANSI(l2), "No pending changes")
 }
 
 func TestWorktreeIndicator(t *testing.T) {
