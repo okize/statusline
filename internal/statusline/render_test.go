@@ -229,7 +229,7 @@ func TestLocationLineSegmentOrder(t *testing.T) {
 		}
 	}
 
-	if !(branchAt < prAt && prAt < statsAt && statsAt < syncAt) {
+	if branchAt >= prAt || prAt >= statsAt || statsAt >= syncAt {
 		t.Errorf("expected order branch < PR < stats < sync on line 3, got %q", line3)
 	}
 	assertNotContains(t, "sync age no longer trails the branch", line3, "main • synced")
