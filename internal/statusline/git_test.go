@@ -17,9 +17,9 @@ func TestSyncAgeFutureCommit(t *testing.T) {
 		"GIT_AUTHOR_DATE=" + dateEnv,
 		"GIT_COMMITTER_DATE=" + dateEnv,
 	})
-	l1, _ := renderGitLines(repo, 0)
-	assertNotContains(t, "future-dated commit does not render negative sync age", l1, "synced -")
-	assertContains(t, "future-dated commit clamps to 0s ago", l1, "synced 0s ago")
+	_, _, sync := renderGitLines(repo, 0)
+	assertNotContains(t, "future-dated commit does not render negative sync age", sync, "synced -")
+	assertContains(t, "future-dated commit clamps to 0s ago", sync, "synced 0s ago")
 }
 
 func TestAheadBehind(t *testing.T) {
@@ -65,11 +65,12 @@ func TestTwoLineContract(t *testing.T) {
 	gitCommit(t, clone, "base", nil)
 	gitRun(t, clone, nil, "push", "-q", "-u", "origin", "main")
 
-	l1, l2 := renderGitLines(clone, 60)
-	assertNotContains(t, "git line 1 must not embed a newline", l1, "\n")
-	assertNotContains(t, "git line 2 must not embed a newline", l2, "\n")
+	branch, stats, sync := renderGitLines(clone, 60)
+	assertNotContains(t, "git branch segment must not embed a newline", branch, "\n")
+	assertNotContains(t, "git stats segment must not embed a newline", stats, "\n")
+	assertNotContains(t, "git sync segment must not embed a newline", sync, "\n")
 
-	nl1, nl2 := renderGitLines(t.TempDir(), 0)
+	nl1, nl2 := RenderGit(t.TempDir(), 0)
 	assertEqual(t, "non-repo line 1 is the not-a-git-repo notice", nl1, "not a git repo")
 	assertEqual(t, "non-repo line 2 is empty", nl2, "")
 }
@@ -81,11 +82,11 @@ func TestBranchTruncation(t *testing.T) {
 	longBranch := "feature/very-long-branch-name-for-truncation-testing"
 	gitRun(t, repo, nil, "checkout", "-q", "-b", longBranch)
 
-	l1, _ := renderGitLines(repo, 60)
+	l1, _, _ := renderGitLines(repo, 60)
 	assertContains(t, "long branch truncated when COLUMNS set", l1, "…")
 	assertNotContains(t, "full branch absent when COLUMNS set", l1, longBranch)
 
-	l1, _ = renderGitLines(repo, 0)
+	l1, _, _ = renderGitLines(repo, 0)
 	assertContains(t, "full branch shown when COLUMNS unset", l1, longBranch)
 }
 
@@ -99,7 +100,7 @@ func TestShortcutDetection(t *testing.T) {
 	scBranch := "feature/sc-54321-very-long-description-of-the-work"
 	gitRun(t, repo, nil, "checkout", "-q", "-b", scBranch)
 
-	_, l2 := renderGitLines(repo, 60)
+	_, l2, _ := renderGitLines(repo, 60)
 	assertContains(t, "Shortcut link built from full branch when display truncated",
 		l2, "app.shortcut.com/acme/story/54321")
 }
@@ -112,7 +113,7 @@ func TestShortcutNoOrgNoLink(t *testing.T) {
 	gitCommit(t, repo, "base", nil)
 	gitRun(t, repo, nil, "checkout", "-q", "-b", "feature/sc-54321-work")
 
-	_, l2 := renderGitLines(repo, 0)
+	_, l2, _ := renderGitLines(repo, 0)
 	assertNotContains(t, "no Shortcut link when org unset", l2, "app.shortcut.com")
 	assertContains(t, "clean repo shows no pending changes", l2, "No pending changes")
 }

@@ -23,7 +23,7 @@ make lint         # golangci-lint run (needs golangci-lint installed)
 
 CI (`.github/workflows/ci.yml`) runs gofmt/vet/`go test` and golangci-lint on every push to `main` and every PR. The linter config is `.golangci.yml` (v2 schema, `standard` set plus `misspell`/`unconvert`, gofmt formatter); the golangci-lint version is pinned in the workflow. Keep the tree gofmt-clean and lint-clean — CI fails otherwise.
 
-The test suite (`*_test.go`) covers sync-age clamping and buckets, ahead/behind counts, truncation, the context bar/gradient, rate-limit colors, the skeleton, cache/out, the PR badge, the worktree tag, ticket detection, and the two-line git contract. Git-fixture tests build throwaway repos under `t.TempDir()` via `exec.Command("git", ...)`; no network needed. Add a failing test before changing behavior (TDD).
+The test suite (`*_test.go`) covers sync-age clamping and buckets, ahead/behind counts, truncation, the context bar/gradient, rate-limit colors, the skeleton, cache/out, the PR badge, the worktree tag, ticket detection, the three-line layout contract, and the two-line git contract. Git-fixture tests build throwaway repos under `t.TempDir()` via `exec.Command("git", ...)`; no network needed. Add a failing test before changing behavior (TDD).
 
 For manual checks, pipe a sample stdin payload to the binary, exactly as Claude Code invokes it:
 
@@ -62,14 +62,22 @@ A thin `main` (root) plus the `statusline` implementation package:
   - **statusline.go** — exported API: `Render(data, columns)` (decode + full status) and `RenderGit(cwd, columns)` (the two git lines).
   - **input.go / types.go** — decode the stdin JSON into a struct and apply the defaults the old single `jq` call did. Optional/nullable fields are pointers so absent/null can be distinguished; integer-ish fields are decoded as `float64` for tolerance (see gotchas).
   - **render.go** — `renderMain` (full assembly + exact newline structure), the context bar/gradient, rate-limit segment, cache/out, effort badge, worktree tag, and PR badge.
-  - **git.go** — git helper. `renderGitLines(cwd, columns) (line1, line2 string)`: branch, ahead/behind (`rev-list --left-right --count`), sync age, and change stats (`status --porcelain` parsed once, `--shortstat` only when a count > 0). Uses `--no-optional-locks` throughout. In Go the two lines are just two return values — there is no two-process boundary or positional `sed` split to keep in sync.
+  - **git.go** — git helper. `renderGitLines(cwd, columns) (branchLine, statsLine, syncLine string)`: branch, ahead/behind (`rev-list --left-right --count`), sync age, and change stats (`status --porcelain` parsed once, `--shortstat` only when a count > 0). Uses `--no-optional-locks` throughout. In Go the segments are just return values — there is no two-process boundary or positional `sed` split to keep in sync. Callers place them: `renderMain` spreads them across line 3, `RenderGit` rejoins branch + sync for the subcommand.
   - **ticket.go** — ticket-tracker detection (see below).
   - **ansi.go** — ANSI palette constants, the `contextGradient` array, `truncateMiddle`, and small formatters (`formatTokens`, `rateLimitColor`, `formatResetTime`/`resetLayout`).
 
 Output contract (three lines, after a leading blank line):
-1. model + `[effort]` (only when the model supports it) | 5h/7d rate limits | context gradient bar + `[N%]` | `Cache:` hit rate and `Out:` tokens (most recent API call)
-2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
-3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
+1. model + `[effort]` (only when the model supports it) • context gradient bar + `[N%]`
+2. 5h/7d rate limits (absent for API-key users) • `Cache:` hit rate and `Out:` tokens (most recent API call)
+3. directory, or `[wt:name]` tag in place of the directory inside a worktree • git branch + `↑N ↓M` ahead/behind vs upstream (only when non-zero) • `PR #N (state)` badge (only when an open PR exists) • ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes` • relative sync time
+
+**Every separator is ` • `** — no pipes anywhere in the rendered output. `TestLineLayout` asserts this, so a new segment joined with ` | ` fails the suite.
+
+**Use the component vocabulary** (defined with a mermaid diagram and a segment→producer table in `README.md`): a **block** holds three **lines** (model / usage / workspace), each line holds ` • `-joined **segments**, and a segment holds **parts** that its producer assembles itself. Name new code and commits with those words — `buildXBadge` for a segment producer, not `renderXBit`. When you add or remove a segment, update the README table in the same change; it is the only place the full segment list is enumerated.
+
+Line 3 is assembled by `joinSegments`, which drops empty segments so an absent PR badge or a non-repo directory leaves no dangling separator. Line 2's rate segment carries no trailing separator — `renderMain` owns the ` • ` that attaches it to cache/out, so API-key users (no rate data) get a line that starts at `Cache:`.
+
+`renderGitLines` returns three segments (branch, stats, sync) rather than two composed lines, because line 3 places the sync time at the far right while the `statusline git <dir>` subcommand still wants it next to the branch. `RenderGit` rejoins branch + sync to preserve that subcommand's two-line output.
 
 ## Conventions and gotchas
 

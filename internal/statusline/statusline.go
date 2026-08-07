@@ -16,7 +16,13 @@ func Render(data []byte, columns int) (string, error) {
 
 // RenderGit returns the two git lines for cwd — line 1 (branch + ahead/behind +
 // sync) and line 2 (ticket link + change stats) — backing the `statusline git
-// <dir>` subcommand. columns is the terminal width; 0 means no truncation.
+// <dir>` subcommand. The main status line spreads these segments differently;
+// this rejoins branch and sync to keep the subcommand's shape. columns is the
+// terminal width; 0 means no truncation.
 func RenderGit(cwd string, columns int) (line1, line2 string) {
-	return renderGitLines(cwd, columns)
+	branch, stats, sync := renderGitLines(cwd, columns)
+	if sync != "" {
+		branch += " • " + sync
+	}
+	return branch, stats
 }

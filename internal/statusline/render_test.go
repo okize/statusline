@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -140,6 +141,110 @@ func TestPRBadgeWithGitStats(t *testing.T) {
 	out := run(t, payload, 0)
 	assertContains(t, "PR badge present alongside git stats", out, "PR #9")
 	assertContains(t, "git stats present alongside PR badge", out, "Unstaged:")
+}
+
+// The three-line contract: line 1 is model + effort + context bar, line 2 is
+// the rate-limit windows plus cache/out, line 3 is location + git + PR/stats.
+func TestLineLayout(t *testing.T) {
+	tmp := t.TempDir()
+	lines := renderLines(t, layoutPayload(tmp), 0)
+
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 content lines, got %d: %q", len(lines), lines)
+	}
+	line1, line2, line3 := stripANSI(lines[0]), stripANSI(lines[1]), stripANSI(lines[2])
+
+	assertContains(t, "line 1 keeps the model name", line1, "Test")
+	assertContains(t, "line 1 keeps the effort badge", line1, "[medium]")
+	assertContains(t, "context bar moves to line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [50%]")
+	assertNotContains(t, "rate limits leave line 1", line1, "5h")
+	assertNotContains(t, "cache leaves line 1", line1, "Cache:")
+	assertNotContains(t, "out tokens leave line 1", line1, "Out:")
+
+	assertContains(t, "5h window moves to line 2", line2, "24% 5h (")
+	assertContains(t, "7d window moves to line 2", line2, "41% 7d (")
+	assertContains(t, "cache moves to line 2", line2, "Cache: 90%")
+	assertContains(t, "out tokens move to line 2", line2, "Out: 613")
+	assertNotContains(t, "no dangling separator before cache", line2, "7d | ")
+	assertNotContains(t, "context bar does not repeat on line 2", line2, "■")
+
+	assertContains(t, "line 3 keeps the location", line3, tmp)
+	assertContains(t, "git line merges into line 3", line3, "not a git repo")
+	assertContains(t, "PR badge merges into line 3", line3, "PR #1234")
+
+	for i, line := range []string{line1, line2, line3} {
+		assertNotContains(t, fmt.Sprintf("line %d separates with bullets, not pipes", i+1), line, "|")
+	}
+}
+
+// With no rate-limit data (API-key users) line 2 leads with the cache segment
+// rather than a dangling bullet.
+func TestLineLayoutWithoutRateLimits(t *testing.T) {
+	tmp := t.TempDir()
+	lines := renderLines(t, cachePayload(tmp), 0)
+
+	line2 := stripANSI(lines[1])
+	assertEqual(t, "line 2 is cache and out only", line2, "Cache: 90% • Out: 10")
+}
+
+// Before the first API call the skeleton keeps the same shape: dim bar on line
+// 1, placeholder windows and placeholder cache/out on line 2.
+func TestLineLayoutSkeleton(t *testing.T) {
+	tmp := t.TempDir()
+	lines := renderLines(t, uninitPayload(tmp), 0)
+
+	line1, line2 := stripANSI(lines[0]), stripANSI(lines[1])
+	assertContains(t, "skeleton bar stays on line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [--%]")
+	assertNotContains(t, "skeleton rate placeholders leave line 1", line1, "--% 5h")
+	assertEqual(t, "skeleton line 2 holds rate, cache and out placeholders", line2,
+		"--% 5h • --% 7d • Cache: --% • Out: --")
+}
+
+// Line 3 orders its segments location, branch, PR, change stats, sync age —
+// the sync age trails the line rather than riding along with the branch.
+func TestLocationLineSegmentOrder(t *testing.T) {
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	clone := filepath.Join(base, "clone")
+	gitRun(t, "", nil, "init", "-q", "--bare", "-b", "main", origin)
+	gitRun(t, "", nil, "clone", "-q", origin, clone)
+	gitRun(t, clone, nil, "symbolic-ref", "HEAD", "refs/heads/main")
+	gitCommit(t, clone, "base", nil)
+	gitRun(t, clone, nil, "push", "-q", "-u", "origin", "main")
+	if err := os.WriteFile(filepath.Join(clone, "untracked.txt"), []byte("dirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"pr":{"number":9,"url":"https://github.com/okize/statusline/pull/9","review_state":"pending"}}`, clone)
+	lines := renderLines(t, payload, 0)
+	line3 := stripANSI(lines[len(lines)-1])
+
+	branchAt := strings.Index(line3, "main")
+	prAt := strings.Index(line3, "PR #9")
+	statsAt := strings.Index(line3, "Unstaged:")
+	syncAt := strings.Index(line3, "synced ")
+	for name, idx := range map[string]int{"branch": branchAt, "PR badge": prAt, "stats": statsAt, "sync age": syncAt} {
+		if idx < 0 {
+			t.Fatalf("%s missing from line 3: %q", name, line3)
+		}
+	}
+
+	if branchAt >= prAt || prAt >= statsAt || statsAt >= syncAt {
+		t.Errorf("expected order branch < PR < stats < sync on line 3, got %q", line3)
+	}
+	assertNotContains(t, "sync age no longer trails the branch", line3, "main • synced")
+}
+
+// The `statusline git <dir>` subcommand keeps its two-line shape, with the sync
+// age still attached to the branch line.
+func TestRenderGitSubcommandKeepsSyncOnBranchLine(t *testing.T) {
+	repo := t.TempDir()
+	gitInit(t, repo)
+	gitCommit(t, repo, "base", nil)
+
+	l1, l2 := RenderGit(repo, 0)
+	assertContains(t, "subcommand line 1 keeps branch and sync together", stripANSI(l1), " • synced ")
+	assertContains(t, "subcommand line 2 still carries the change stats", stripANSI(l2), "No pending changes")
 }
 
 func TestWorktreeIndicator(t *testing.T) {

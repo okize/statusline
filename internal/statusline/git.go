@@ -22,12 +22,14 @@ func runGit(cwd string, args ...string) (string, bool) {
 	return string(out), true
 }
 
-// renderGitLines produces the two git lines for cwd. Line 1 is branch +
-// ahead/behind + sync status; line 2 is the ticket link + change stats, or
-// "No pending changes". A non-repo yields ("not a git repo", "").
-func renderGitLines(cwd string, columns int) (string, string) {
+// renderGitLines produces the git segments for cwd: the branch (with
+// ahead/behind counts), the ticket link + change stats (or "No pending
+// changes"), and the relative sync age. The caller places them — renderMain
+// spreads them across line 3, while RenderGit rejoins branch and sync for the
+// subcommand's two-line output. A non-repo yields ("not a git repo", "", "").
+func renderGitLines(cwd string, columns int) (branchLine, statsLine, syncLine string) {
 	if !gitIsRepo(cwd) {
-		return "not a git repo", ""
+		return "not a git repo", "", ""
 	}
 
 	branch := gitBranch(cwd)
@@ -45,23 +47,23 @@ func renderGitLines(cwd string, columns int) (string, string) {
 
 	ab := gitAheadBehind(cwd)
 	syncColor, sync := gitSyncStatus(cwd)
-	line1 := branchDisplay + ab + " • " + syncColor + sync + reset
+	branchLine = branchDisplay + ab
+	syncLine = syncColor + sync + reset
 
 	cs := gitChangeStats(cwd)
 
 	label, text, url := detectTicket(branch)
 	ticketLink := ""
 	if url != "" {
-		ticketLink = label + ": " + linkBlue + " \x1b]8;;" + url + "\a" + text + "\x1b]8;;\a" + reset + " | "
+		ticketLink = label + ": " + linkBlue + " \x1b]8;;" + url + "\a" + text + "\x1b]8;;\a" + reset + " • "
 	}
 
-	var line2 string
 	if cs != "" {
-		line2 = ticketLink + cs
+		statsLine = ticketLink + cs
 	} else {
-		line2 = ticketLink + lightGrey + "No pending changes" + reset
+		statsLine = ticketLink + lightGrey + "No pending changes" + reset
 	}
-	return line1, line2
+	return branchLine, statsLine, syncLine
 }
 
 func gitIsRepo(cwd string) bool {
@@ -192,7 +194,7 @@ func gitChangeStats(cwd string) string {
 		part := "Unstaged: " + lightGrey + " " + strconv.Itoa(unstaged) + reset +
 			" • (" + mutedGreen + "+" + ins + reset + "/" + mutedRed + "-" + del + reset + ")"
 		if stats != "" {
-			stats = stats + " | " + part
+			stats = stats + " • " + part
 		} else {
 			stats = part
 		}

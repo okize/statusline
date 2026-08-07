@@ -37,12 +37,12 @@ func TestSyncAgeBuckets(t *testing.T) {
 		d := time.Now().Add(-c.ago).Unix()
 		env := fmt.Sprintf("%d +0000", d)
 		gitCommit(t, repo, "c", []string{"GIT_AUTHOR_DATE=" + env, "GIT_COMMITTER_DATE=" + env})
-		l1, _ := renderGitLines(repo, 0)
-		assertContains(t, c.want, l1, c.want)
+		_, _, sync := renderGitLines(repo, 0)
+		assertContains(t, c.want, sync, c.want)
 		if c.yellow {
-			assertContains(t, "stale commit (>= 1 day) is yellow", l1, yellow+"synced")
+			assertContains(t, "stale commit (>= 1 day) is yellow", sync, yellow+"synced")
 		} else {
-			assertContains(t, "recent commit is light grey", l1, lightGrey+"synced")
+			assertContains(t, "recent commit is light grey", sync, lightGrey+"synced")
 		}
 	}
 }
@@ -70,7 +70,7 @@ func TestChangeStatsCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, l2 := renderGitLines(repo, 0)
+	_, l2, _ := renderGitLines(repo, 0)
 	s := stripANSI(l2)
 	assertContains(t, "staged insertion count", s, "Staged:  1 • (+2/-0)")
 	assertContains(t, "unstaged insertion count", s, "Unstaged:  1 • (+2/-0)")
