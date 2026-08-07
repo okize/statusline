@@ -6,11 +6,11 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ## What it displays
 
-**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) | rate limit usage (5h/7d with reset times) | context window gradient bar with bracketed percentage (`[42%]`) | cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) | context window gradient bar with bracketed percentage (`[42%]`)
 
-**Line 2:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree | git branch, ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero), and last commit time
+**Line 2:** Rate limit usage (5h/7d with reset times, subscription plans only) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
-**Line 3:** Pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) | Shortcut ticket link (if branch matches `sc-#####`) | staged/unstaged file counts with insertion/deletion stats
+**Line 3:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree | git branch, ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero), and last commit time | pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) | Shortcut ticket link (if branch matches `sc-#####`) | staged/unstaged file counts with insertion/deletion stats
 
 When Claude Code provides the terminal width (`COLUMNS`, v2.1.153+), long directory paths and branch names are truncated with a middle ellipsis (`…`).
 
@@ -23,7 +23,7 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
 | `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
 | `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
-| `internal/statusline/render.go` | Line 1 (model, effort, rate limits, context bar, cache, out), the location/worktree tag, and the PR badge. |
+| `internal/statusline/render.go` | Line 1 (model, effort, context bar), line 2 (rate limits, cache, out), and line 3's location/worktree tag and PR badge. |
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
 | `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |

@@ -52,6 +52,16 @@ func run(t *testing.T, jsonStr string, columns int) string {
 	return renderMain(in, columns)
 }
 
+// renderLines renders the full status and splits it into its content lines,
+// dropping the leading blank line and the trailing newline. Layout tests assert
+// on line placement, so they need the lines individually rather than as one
+// contains-checkable blob.
+func renderLines(t *testing.T, jsonStr string, columns int) []string {
+	t.Helper()
+	out := run(t, jsonStr, columns)
+	return strings.Split(strings.Trim(out, "\n"), "\n")
+}
+
 // gitLines renders the two git lines joined with a newline, so contains-checks
 // that span both lines work like the bash `out` variable did.
 func gitLines(cwd string, columns int) string {
@@ -111,6 +121,13 @@ func cachePayload(cwd string) string {
 
 func effortPayload(cwd string) string {
 	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":10,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":10}},"effort":{"level":"xhigh"}}`, cwd)
+}
+
+// layoutPayload carries usage, both rate-limit windows (with reset times), an
+// effort level and a PR, so a single render exercises every segment the
+// three-line layout places.
+func layoutPayload(cwd string) string {
+	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":613}},"rate_limits":{"five_hour":{"used_percentage":24,"resets_at":1788000000},"seven_day":{"used_percentage":41,"resets_at":1788400000}},"effort":{"level":"medium"},"pr":{"number":1234,"url":"https://github.com/okize/statusline/pull/1234","review_state":"pending"}}`, cwd)
 }
 
 func ratePayload(cwd string, pct int) string {

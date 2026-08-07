@@ -8,9 +8,10 @@ import (
 )
 
 // renderMain builds the full multi-line status output: a leading blank line,
-// line 1 (model + effort + rate limits + context bar + cache + Out), the
-// location+branch line, and the optional PR+stats line. Shells out to the git
-// renderer for the git portions. columns == 0 means "no truncation".
+// line 1 (model + effort + context bar), line 2 (rate limits + cache + Out),
+// and line 3 (location + branch + optional PR badge and change stats). Shells
+// out to the git renderer for the git portions. columns == 0 means "no
+// truncation".
 func renderMain(in *Input, columns int) string {
 	// Reasoning effort badge (absent when the model doesn't support effort).
 	effortDisplay := ""
@@ -43,10 +44,10 @@ func renderMain(in *Input, columns int) string {
 
 	// Cache hit rate of the most recent API call (cache_read / total input).
 	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
-	cacheDisplay := " • " + lightGrey + "Cache: --%" + reset
+	cacheDisplay := lightGrey + "Cache: --%" + reset
 	if totalIn > 0 {
 		cachePct := in.CurCacheRead * 100 / totalIn
-		cacheDisplay = " • " + lightGrey + "Cache: " + strconv.Itoa(cachePct) + "%" + reset
+		cacheDisplay = lightGrey + "Cache: " + strconv.Itoa(cachePct) + "%" + reset
 	}
 
 	tokensOut := "--"
@@ -66,24 +67,31 @@ func renderMain(in *Input, columns int) string {
 
 	gitBranchLine, gitStatsLine := renderGitLines(in.CWD, columns)
 
+	// Line 2 leads with the rate-limit windows when they exist; without them
+	// (API-key users) it starts at the cache segment rather than a bare bullet.
+	usageLine := cacheDisplay + " • " + lightGrey + "Out: " + tokensOut + reset
+	if rateDisplay != "" {
+		usageLine = rateDisplay + " • " + usageLine
+	}
+
 	var sb strings.Builder
 	sb.WriteString("\n")
-	sb.WriteString(green + in.ModelName + reset + effortDisplay + " | " + rateDisplay +
-		contextDisplay + cacheDisplay + " • " + lightGrey + "Out: " + tokensOut + reset + "\n")
-	sb.WriteString(locationDisplay + " | " + gitBranchLine + "\n")
+	sb.WriteString(green + in.ModelName + reset + effortDisplay + " | " + contextDisplay + "\n")
+	sb.WriteString(usageLine + "\n")
+	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine) + "\n")
+	return sb.String()
+}
 
-	statsLine := gitStatsLine
-	if prDisplay != "" {
-		if statsLine != "" {
-			statsLine = prDisplay + " | " + statsLine
-		} else {
-			statsLine = prDisplay
+// joinSegments joins the non-empty segments of the location line with " | ",
+// so an absent PR badge or a clean worktree leaves no dangling separator.
+func joinSegments(segments ...string) string {
+	var present []string
+	for _, s := range segments {
+		if s != "" {
+			present = append(present, s)
 		}
 	}
-	if statsLine != "" {
-		sb.WriteString(statsLine + "\n")
-	}
-	return sb.String()
+	return strings.Join(present, " | ")
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form
@@ -121,13 +129,13 @@ func buildContextDisplay(pct int, initialized bool) string {
 }
 
 // buildRateDisplay renders the 5h/7d rate-limit segment. Before the first API
-// call (uninitialized and no rate data) it shows the "--% 5h | --% 7d | "
+// call (uninitialized and no rate data) it shows the "--% 5h | --% 7d"
 // skeleton; once rate data is present it shows whichever windows exist, colored
-// by usage, with a trailing " | ". API-key users (initialized, no rate data)
-// get "".
+// by usage. API-key users (initialized, no rate data) get "". The caller owns
+// the separator that attaches this to the rest of the line.
 func buildRateDisplay(in *Input, initialized bool) string {
 	if !initialized && in.RateFivePct == nil && in.RateSevenPct == nil {
-		return lightGrey + "--% 5h" + reset + " | " + lightGrey + "--% 7d" + reset + " | "
+		return lightGrey + "--% 5h" + reset + " | " + lightGrey + "--% 7d" + reset
 	}
 	if in.RateFivePct == nil && in.RateSevenPct == nil {
 		return ""
@@ -140,7 +148,7 @@ func buildRateDisplay(in *Input, initialized bool) string {
 	if in.RateSevenPct != nil {
 		parts = append(parts, rateSegment(*in.RateSevenPct, "7d", in.RateSevenReset))
 	}
-	return strings.Join(parts, " | ") + " | "
+	return strings.Join(parts, " | ")
 }
 
 func rateSegment(pct float64, window string, resetAt *int64) string {

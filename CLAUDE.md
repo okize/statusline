@@ -23,7 +23,7 @@ make lint         # golangci-lint run (needs golangci-lint installed)
 
 CI (`.github/workflows/ci.yml`) runs gofmt/vet/`go test` and golangci-lint on every push to `main` and every PR. The linter config is `.golangci.yml` (v2 schema, `standard` set plus `misspell`/`unconvert`, gofmt formatter); the golangci-lint version is pinned in the workflow. Keep the tree gofmt-clean and lint-clean — CI fails otherwise.
 
-The test suite (`*_test.go`) covers sync-age clamping and buckets, ahead/behind counts, truncation, the context bar/gradient, rate-limit colors, the skeleton, cache/out, the PR badge, the worktree tag, ticket detection, and the two-line git contract. Git-fixture tests build throwaway repos under `t.TempDir()` via `exec.Command("git", ...)`; no network needed. Add a failing test before changing behavior (TDD).
+The test suite (`*_test.go`) covers sync-age clamping and buckets, ahead/behind counts, truncation, the context bar/gradient, rate-limit colors, the skeleton, cache/out, the PR badge, the worktree tag, ticket detection, the three-line layout contract, and the two-line git contract. Git-fixture tests build throwaway repos under `t.TempDir()` via `exec.Command("git", ...)`; no network needed. Add a failing test before changing behavior (TDD).
 
 For manual checks, pipe a sample stdin payload to the binary, exactly as Claude Code invokes it:
 
@@ -67,9 +67,11 @@ A thin `main` (root) plus the `statusline` implementation package:
   - **ansi.go** — ANSI palette constants, the `contextGradient` array, `truncateMiddle`, and small formatters (`formatTokens`, `rateLimitColor`, `formatResetTime`/`resetLayout`).
 
 Output contract (three lines, after a leading blank line):
-1. model + `[effort]` (only when the model supports it) | 5h/7d rate limits | context gradient bar + `[N%]` | `Cache:` hit rate and `Out:` tokens (most recent API call)
-2. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time
-3. `PR #N (state)` badge (only when an open PR exists) + ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
+1. model + `[effort]` (only when the model supports it) | context gradient bar + `[N%]`
+2. 5h/7d rate limits (absent for API-key users) • `Cache:` hit rate and `Out:` tokens (most recent API call)
+3. directory, or `[wt:name]` tag in place of the directory inside a worktree | git branch, `↑N ↓M` ahead/behind vs upstream (only when non-zero), relative sync time | `PR #N (state)` badge (only when an open PR exists) | ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes`
+
+Line 3 is assembled by `joinSegments`, which drops empty segments so an absent PR badge or a non-repo directory leaves no dangling ` | `. Line 2's rate segment carries no trailing separator — `renderMain` owns the ` • ` that attaches it to cache/out, so API-key users (no rate data) get a line that starts at `Cache:`.
 
 ## Conventions and gotchas
 
