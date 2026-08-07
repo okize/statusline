@@ -76,12 +76,17 @@ func TestResetTimeBadge(t *testing.T) {
 	tmp := t.TempDir()
 	out := run(t, layoutPayload(tmp), 0)
 
+	// formatResetTime renders in the local zone, so derive the expected label
+	// rather than hardcoding one machine's rendering.
+	epoch := int64(1788000000)
+	label := formatResetTime(&epoch, "5h")
+
 	assertContains(t, "5h reset time is a bracketed blue badge", out,
-		"\x1b[38;5;248m[\x1b[38;5;68m6:40 AM\x1b[38;5;248m]\x1b[0m")
-	assertNotContains(t, "reset time no longer wrapped in parens", stripANSI(out), "(6:40 AM)")
+		"\x1b[38;5;248m["+"\x1b[38;5;68m"+label+"\x1b[38;5;248m]\x1b[0m")
+	assertNotContains(t, "reset time no longer wrapped in parens", stripANSI(out), "("+label+")")
 
 	plain := stripANSI(out)
-	assertContains(t, "5h window keeps its usage percent", plain, "24% 5h [6:40 AM]")
+	assertContains(t, "5h window keeps its usage percent", plain, "24% 5h ["+label+"]")
 	assertContains(t, "7d window keeps its usage percent", plain, "41% 7d [")
 
 	// The badge stays blue even when usage pushes the percentage to red.
