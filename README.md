@@ -16,6 +16,59 @@ Segments are separated by ` • ` throughout. The `statusline git <dir>` subcomm
 
 When Claude Code provides the terminal width (`COLUMNS`, v2.1.153+), long directory paths and branch names are truncated with a middle ellipsis (`…`).
 
+## Component vocabulary
+
+The output is built from four kinds of thing. Use these words in code, comments, commits, and issues — they are what the tests and the docs assume.
+
+- **Block** — the whole rendered output: a leading blank line plus three lines.
+- **Line** — one row of the block. The three are the **model line**, the **usage line**, and the **workspace line**.
+- **Segment** — a top-level unit joined to its neighbours by ` • `. Segments are independently omittable; a missing one leaves no dangling separator.
+- **Part** — a piece inside a segment, not separately joined (a percentage inside a rate window, the state inside a PR badge).
+
+Each arrow below is a ` • ` separator, so every line reads left to right exactly as it renders:
+
+```mermaid
+flowchart TB
+    subgraph ModelLine["Model line"]
+        direction LR
+        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge<br/>[medium]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
+    end
+
+    subgraph UsageLine["Usage line"]
+        direction LR
+        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> CacheRate["CacheRate<br/>Cache: 85%"] -- "•" --> OutputCount["OutputCount<br/>Out: 613"]
+    end
+
+    subgraph WorkspaceLine["Workspace line"]
+        direction LR
+        LocationTag["LocationTag<br/>~/src/statusline"] -- "•" --> BranchSegment["BranchSegment<br/>main ↑1 ↓2"] -- "•" --> PRBadge["PRBadge<br/>PR #4 (pending)"] -- "•" --> ChangeStats["TicketLink + ChangeStats<br/>sc-123 • Unstaged: 7"] -- "•" --> SyncAge["SyncAge<br/>synced 44s ago"]
+    end
+
+    ModelLine ~~~ UsageLine ~~~ WorkspaceLine
+```
+
+Every segment maps to exactly one producer:
+
+| Segment | Parts | Produced by | Omitted when |
+|---------|-------|-------------|--------------|
+| `ModelName` | — | `renderMain` (`in.ModelName`) | never |
+| `EffortBadge` | — | `renderMain` (`effortDisplay`) | the model doesn't support effort |
+| `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
+| `RateWindow` | `UsagePercent`, `ResetTime` | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently |
+| `CacheRate` | — | `renderMain` (`cacheDisplay`) | never — `--%` pre-first-call |
+| `OutputCount` | — | `renderMain` + `formatTokens` | never — `--` pre-first-call |
+| `LocationTag` | — | `collapseHome` + `truncateMiddle`; the `WorktreeTag` variant in `renderMain` | never |
+| `BranchSegment` | `BranchName`, `AheadBehind` | `renderGitLines` (`gitBranch` + `gitAheadBehind`) | non-repo (replaced by `not a git repo`) |
+| `PRBadge` | `PRNumber`, `ReviewState` | `buildPRBadge` | no open PR |
+| `TicketLink` | — | `detectTicket` | no tracker matches the branch |
+| `ChangeStats` | `StagedStat`, `UnstagedStat` | `gitChangeStats` | non-repo; a clean tree renders `No pending changes` |
+| `SyncAge` | — | `gitSyncStatus` | non-repo |
+
+Two structural rules follow from the vocabulary:
+
+- **Segments join with ` • `, never a pipe.** `joinSegments` does the joining and drops empties, so an absent `PRBadge` or a non-repo directory leaves no stray separator.
+- **Parts are the producer's business.** A producer returns its segment fully assembled, including the separators *between its own parts*; the caller only places segments.
+
 ## Files
 
 A single Go binary: a thin `main.go` that calls into the `internal/statusline` package.

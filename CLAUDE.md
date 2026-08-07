@@ -73,6 +73,8 @@ Output contract (three lines, after a leading blank line):
 
 **Every separator is ` • `** — no pipes anywhere in the rendered output. `TestLineLayout` asserts this, so a new segment joined with ` | ` fails the suite.
 
+**Use the component vocabulary** (defined with a mermaid diagram and a segment→producer table in `README.md`): a **block** holds three **lines** (model / usage / workspace), each line holds ` • `-joined **segments**, and a segment holds **parts** that its producer assembles itself. Name new code and commits with those words — `buildXBadge` for a segment producer, not `renderXBit`. When you add or remove a segment, update the README table in the same change; it is the only place the full segment list is enumerated.
+
 Line 3 is assembled by `joinSegments`, which drops empty segments so an absent PR badge or a non-repo directory leaves no dangling separator. Line 2's rate segment carries no trailing separator — `renderMain` owns the ` • ` that attaches it to cache/out, so API-key users (no rate data) get a line that starts at `Cache:`.
 
 `renderGitLines` returns three segments (branch, stats, sync) rather than two composed lines, because line 3 places the sync time at the far right while the `statusline git <dir>` subcommand still wants it next to the branch. `RenderGit` rejoins branch + sync to preserve that subcommand's two-line output.
