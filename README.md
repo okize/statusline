@@ -82,7 +82,7 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
 | `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
-| `internal/statusline/*_test.go` | Test suite. Run with `go test ./...`; exits non-zero on failure. |
+| `*_test.go` | Test suite. Run with `go test ./...`; exits non-zero on failure. |
 
 ## Docs
 
