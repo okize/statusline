@@ -33,8 +33,8 @@ func TestFormatResetTime(t *testing.T) {
 }
 
 // No test populated rate_limits.seven_day, so the 7d decode branch, the 7d
-// segment, and the " | " join between two windows were all uncovered. The
-// parenthesised reset label (rateSegment's label != "" branch) too.
+// segment, and the " • " join between two windows were all uncovered. The
+// bracketed reset badge (rateSegment's label != "" branch) too.
 func TestBothRateWindowsWithResets(t *testing.T) {
 	pinLocalUTC(t)
 	tmp := t.TempDir()
@@ -43,17 +43,17 @@ func TestBothRateWindowsWithResets(t *testing.T) {
 		tmp, testResetEpoch, testResetEpoch)
 
 	out := stripANSI(run(t, payload, 0))
-	assertContains(t, "5h window with reset label", out, "18% 5h (10:40 AM)")
-	assertContains(t, "7d window with dated reset label", out, "90% 7d (8/29/26 10:40 AM)")
-	assertContains(t, "the two windows are pipe-joined", out, "5h (10:40 AM) | 90% 7d")
+	assertContains(t, "5h window with reset badge", out, "18% 5h [10:40 AM]")
+	assertContains(t, "7d window with dated reset badge", out, "90% 7d [8/29/26 10:40 AM]")
+	assertContains(t, "the two windows are bullet-joined", out, "5h [10:40 AM] • 90% 7d")
 
 	colored := run(t, payload, 0)
 	assertContains(t, "7d colors independently of 5h", colored, red+"90% 7d")
 
-	// A 7d window alone must still render (and still emit the trailing " | ").
+	// A 7d window alone must still render, joined to cache/out by the bullet.
 	only7d := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":10}},"rate_limits":{"seven_day":{"used_percentage":55}}}`, tmp)
 	out = stripANSI(run(t, only7d, 0))
-	assertContains(t, "7d renders without a 5h window", out, "55% 7d | ")
+	assertContains(t, "7d renders without a 5h window", out, "55% 7d • Cache:")
 	assertNotContains(t, "no 5h segment when five_hour absent", out, "5h")
 }
 
@@ -159,7 +159,7 @@ func TestTruncationFloors(t *testing.T) {
 	gitRun(t, repo, nil, "checkout", "-q", "-b", branch)
 
 	// COLUMNS/4 would be 5; the floor of 15 must win.
-	l1, _ := renderGitLines(repo, 20)
+	l1, _, _ := renderGitLines(repo, 20)
 	assertContains(t, "branch truncated at the floor of 15", stripANSI(l1), truncateMiddle(branch, 15))
 	assertNotContains(t, "not truncated at COLUMNS/4", stripANSI(l1), truncateMiddle(branch, 5))
 }
@@ -176,11 +176,13 @@ func TestContextBarClampsAbove100(t *testing.T) {
 
 // The non-repo path of renderGitLines was uncovered.
 func TestGitLinesOutsideRepo(t *testing.T) {
-	l1, l2 := renderGitLines(t.TempDir(), 0)
+	l1, l2, sync := renderGitLines(t.TempDir(), 0)
 	assertEqual(t, "non-repo line 1", l1, "not a git repo")
 	assertEqual(t, "non-repo line 2 is empty", l2, "")
+	assertEqual(t, "non-repo sync segment is empty", sync, "")
 
-	l1, l2 = renderGitLines("", 0)
+	l1, l2, sync = renderGitLines("", 0)
 	assertEqual(t, "empty cwd line 1", l1, "not a git repo")
 	assertEqual(t, "empty cwd line 2 is empty", l2, "")
+	assertEqual(t, "empty cwd sync segment is empty", sync, "")
 }

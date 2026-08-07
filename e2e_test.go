@@ -108,17 +108,28 @@ func TestE2EStdinOutputShape(t *testing.T) {
 	if !strings.Contains(l1, "Opus 4.8") || !strings.Contains(l1, "[42%]") {
 		t.Errorf("line 1 missing model or context percentage: %q", l1)
 	}
-	if !strings.Contains(l1, "18% 5h") || !strings.Contains(l1, "55% 7d") {
-		t.Errorf("line 1 missing rate limits: %q", l1)
+	if strings.Contains(l1, "5h") || strings.Contains(l1, "Cache:") {
+		t.Errorf("line 1 must carry only the model and context bar: %q", l1)
 	}
-	if !strings.Contains(l1, "Cache: 58%") || !strings.Contains(l1, "Out: 12k") {
-		t.Errorf("line 1 missing cache/out: %q", l1)
+	if !strings.Contains(l2, "18% 5h") || !strings.Contains(l2, "55% 7d") {
+		t.Errorf("line 2 missing rate limits: %q", l2)
 	}
-	if !strings.Contains(l2, repo) || !strings.Contains(l2, "synced") {
-		t.Errorf("line 2 missing directory or sync age: %q", l2)
+	if !strings.Contains(l2, "Cache: 58%") || !strings.Contains(l2, "Out: 12k") {
+		t.Errorf("line 2 missing cache/out: %q", l2)
 	}
-	if l3 != "No pending changes" {
-		t.Errorf("line 3 = %q, want %q", l3, "No pending changes")
+	if !strings.Contains(l3, repo) || !strings.Contains(l3, "synced") {
+		t.Errorf("line 3 missing directory or sync age: %q", l3)
+	}
+	if !strings.Contains(l3, "No pending changes") {
+		t.Errorf("line 3 missing change stats: %q", l3)
+	}
+	if !strings.HasSuffix(l3, "ago") {
+		t.Errorf("line 3 must end with the sync age: %q", l3)
+	}
+	for i, line := range []string{l1, l2, l3} {
+		if strings.Contains(line, "|") {
+			t.Errorf("line %d separates with bullets, not pipes: %q", i+1, line)
+		}
 	}
 }
 
