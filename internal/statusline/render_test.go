@@ -69,6 +69,32 @@ func TestRateLimitColors(t *testing.T) {
 	assertContains(t, "rate limit usage 85%+ is red", run(t, ratePayload(tmp, 90), 0), "\x1b[31m90% 5h")
 }
 
+// The reset time sits in a bracketed badge that mirrors the effort badge's
+// shape — light-grey brackets around a muted fill — but in blue, and it does not
+// take the usage color.
+func TestResetTimeBadge(t *testing.T) {
+	tmp := t.TempDir()
+	out := run(t, layoutPayload(tmp), 0)
+
+	// formatResetTime renders in the local zone, so derive the expected label
+	// rather than hardcoding one machine's rendering.
+	epoch := int64(1788000000)
+	label := formatResetTime(&epoch, "5h")
+
+	assertContains(t, "5h reset time is a bracketed blue badge", out,
+		"\x1b[38;5;248m["+"\x1b[38;5;68m"+label+"\x1b[38;5;248m]\x1b[0m")
+	assertNotContains(t, "reset time no longer wrapped in parens", stripANSI(out), "("+label+")")
+
+	plain := stripANSI(out)
+	assertContains(t, "5h window keeps its usage percent", plain, "24% 5h ["+label+"]")
+	assertContains(t, "7d window keeps its usage percent", plain, "41% 7d [")
+
+	// The badge stays blue even when usage pushes the percentage to red.
+	hot := run(t, ratePayloadWithReset(tmp, 90), 0)
+	assertContains(t, "red usage still gets a blue reset badge", hot, "\x1b[31m90% 5h")
+	assertContains(t, "reset badge fill is blue regardless of usage color", hot, "\x1b[38;5;68m")
+}
+
 func TestPreFirstCallSkeleton(t *testing.T) {
 	tmp := t.TempDir()
 	out := stripANSI(run(t, uninitPayload(tmp), 0))
@@ -161,8 +187,8 @@ func TestLineLayout(t *testing.T) {
 	assertNotContains(t, "cache leaves line 1", line1, "Cache:")
 	assertNotContains(t, "out tokens leave line 1", line1, "Out:")
 
-	assertContains(t, "5h window moves to line 2", line2, "24% 5h (")
-	assertContains(t, "7d window moves to line 2", line2, "41% 7d (")
+	assertContains(t, "5h window moves to line 2", line2, "24% 5h [")
+	assertContains(t, "7d window moves to line 2", line2, "41% 7d [")
 	assertContains(t, "cache moves to line 2", line2, "Cache: 90%")
 	assertContains(t, "out tokens move to line 2", line2, "Out: 613")
 	assertNotContains(t, "no dangling separator before cache", line2, "7d | ")
