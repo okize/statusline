@@ -130,6 +130,12 @@ func layoutPayload(cwd string) string {
 	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":613}},"rate_limits":{"five_hour":{"used_percentage":24,"resets_at":1788000000},"seven_day":{"used_percentage":41,"resets_at":1788400000}},"effort":{"level":"medium"},"pr":{"number":1234,"url":"https://github.com/okize/statusline/pull/1234","review_state":"pending"}}`, cwd)
 }
 
+// ratePayloadWithReset is ratePayload plus a resets_at, so the reset-time badge
+// renders.
+func ratePayloadWithReset(cwd string, pct int) string {
+	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":10}},"rate_limits":{"five_hour":{"used_percentage":%d,"resets_at":1788000000}}}`, cwd, pct)
+}
+
 func ratePayload(cwd string, pct int) string {
 	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":10}},"rate_limits":{"five_hour":{"used_percentage":%d}}}`, cwd, pct)
 }

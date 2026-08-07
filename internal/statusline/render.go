@@ -157,7 +157,11 @@ func rateSegment(pct float64, window string, resetAt *int64) string {
 	color := rateLimitColor(pctInt)
 	label := formatResetTime(resetAt, window)
 	if label != "" {
-		return color + pctStr + "% " + window + " (" + label + ")" + reset
+		// Bracketed badge in the shape of the effort badge on line 1: light-grey
+		// brackets around a muted fill. Blue here rather than green, and fixed —
+		// it does not follow the usage color.
+		return color + pctStr + "% " + window + reset +
+			" " + lightGrey + "[" + mutedBlue + label + lightGrey + "]" + reset
 	}
 	return color + pctStr + "% " + window + reset
 }

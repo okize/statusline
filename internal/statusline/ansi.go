@@ -19,6 +19,7 @@ const (
 	dimGrey    = "\x1b[38;5;242m"
 	linkBlue   = "\x1b[94m"
 	mutedGreen = "\x1b[38;5;108m"
+	mutedBlue  = "\x1b[38;5;68m"
 	mutedRed   = "\x1b[38;5;167m"
 	reset      = "\x1b[0m"
 )

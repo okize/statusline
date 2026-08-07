@@ -8,7 +8,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 **Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) • context window gradient bar with bracketed percentage (`[42%]`)
 
-**Line 2:** Rate limit usage (5h/7d with reset times, subscription plans only) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 3:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree • git branch with ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero) • pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) • Shortcut ticket link (if branch matches `sc-#####`) and staged/unstaged file counts with insertion/deletion stats • time of the last commit
 
@@ -54,7 +54,7 @@ Every segment maps to exactly one producer:
 | `ModelName` | — | `renderMain` (`in.ModelName`) | never |
 | `EffortBadge` | — | `renderMain` (`effortDisplay`) | the model doesn't support effort |
 | `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
-| `RateWindow` | `UsagePercent`, `ResetTime` | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently |
+| `RateWindow` | `UsagePercent`, `ResetTime` badge | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently. The `ResetTime` badge alone is dropped when `resets_at` is absent |
 | `CacheRate` | — | `renderMain` (`cacheDisplay`) | never — `--%` pre-first-call |
 | `OutputCount` | — | `renderMain` + `formatTokens` | never — `--` pre-first-call |
 | `LocationTag` | — | `collapseHome` + `truncateMiddle`; the `WorktreeTag` variant in `renderMain` | never |
