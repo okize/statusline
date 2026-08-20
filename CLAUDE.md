@@ -61,14 +61,14 @@ A thin `main` (root) plus the `statusline` implementation package:
 - **internal/statusline/** (`package statusline`) — the renderer and its tests:
   - **statusline.go** — exported API: `Render(data, columns)` (decode + full status) and `RenderGit(cwd, columns)` (the two git lines).
   - **input.go / types.go** — decode the stdin JSON into a struct and apply the defaults the old single `jq` call did. Optional/nullable fields are pointers so absent/null can be distinguished; integer-ish fields are decoded as `float64` for tolerance (see gotchas).
-  - **render.go** — `renderMain` (full assembly + exact newline structure), the context bar/gradient, rate-limit segment, cache/out, effort badge, worktree tag, and PR badge.
+  - **render.go** — `renderMain` (full assembly + exact newline structure), the context bar/gradient, rate-limit segment, cache/out, session cost, effort and fast badges, worktree tag, and PR badge.
   - **git.go** — git helper. `renderGitLines(cwd, columns) (branchLine, statsLine, syncLine string)`: branch, ahead/behind (`rev-list --left-right --count`), sync age, and change stats (`status --porcelain` parsed once, `--shortstat` only when a count > 0). Uses `--no-optional-locks` throughout. In Go the segments are just return values — there is no two-process boundary or positional `sed` split to keep in sync. Callers place them: `renderMain` spreads them across line 3, `RenderGit` rejoins branch + sync for the subcommand.
   - **ticket.go** — ticket-tracker detection (see below).
   - **ansi.go** — ANSI palette constants, the `contextGradient` array, `truncateMiddle`, and small formatters (`formatTokens`, `rateLimitColor`, `formatResetTime`/`resetLayout`).
 
 Output contract (three lines, after a leading blank line):
-1. model + `[effort]` (only when the model supports it) • context gradient bar + `[N%]`
-2. 5h/7d rate limits (absent for API-key users) • `Cache:` hit rate and `Out:` tokens (most recent API call)
+1. model + `[effort]` (only when the model supports it) + `[fast]` (only when `fast_mode` is true) • context gradient bar + `[N%]`
+2. 5h/7d rate limits (absent for API-key users) • session cost `$N.NN` (only when `cost.total_cost_usd` is present) • `Cache:` hit rate and `Out:` tokens (most recent API call)
 3. directory, or `[wt:name]` tag in place of the directory inside a worktree • git branch + `↑N ↓M` ahead/behind vs upstream (only when non-zero) • `PR #N (state)` badge (only when an open PR exists) • ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes` • relative sync time
 
 **Every separator is ` • `** — no pipes anywhere in the rendered output. `TestLineLayout` asserts this, so a new segment joined with ` | ` fails the suite.
@@ -90,13 +90,14 @@ Line 3 is assembled by `joinSegments`, which drops empty segments so an absent P
   - `rate_limits` (and each `five_hour` / `seven_day` window independently) appears only for Pro/Max subscribers after the first API response.
   - `context_window.used_percentage` may be `null` early; `renderMain` falls back to computing it from `current_usage` (input-only).
   - `pr.*` is absent until an open PR is found and removed once it merges/closes; `pr.review_state` may be independently absent. `worktree.name` appears only in `--worktree` sessions; `workspace.git_worktree` for any linked worktree. Resolution is `worktree.name // workspace.git_worktree // ""`.
+  - `fast_mode` is a plain boolean; absent and `false` both mean no `[fast]` badge. `cost.total_cost_usd` renders as `$N.NN` and the segment is omitted when the `cost` object is absent.
   - `effort.level` reflects the live session effort (including mid-session `/effort` changes) and is absent when the model doesn't support the effort parameter — the `[effort]` badge disappears.
 - **Width-aware truncation**: Claude Code (>= 2.1.153) sets `COLUMNS` before running the binary (`tput cols` does not work — output is captured). The directory truncates to `COLUMNS/3` (floor 20) and the displayed branch to `COLUMNS/4` (floor 15) via `truncateMiddle`; `COLUMNS` unset/0 means no truncation. Truncate plain text only — never strings that already contain ANSI codes. Detection logic (ticket tracker matching) must use the full branch, never the truncated display.
 - **Commit timestamps can be ahead of the system clock** — the sync-age math clamps negative diffs to 0 rather than rendering `synced -86400s ago`.
 - **Context percentage is input-only**: `input_tokens + cache_creation_input_tokens + cache_read_input_tokens` (excludes `output_tokens`). Any manual percentage math must use this same formula to match Claude Code's `used_percentage`.
 - **`resets_at` is Unix epoch seconds.**
 - **Colors** live in `internal/statusline/` (`ansi.go` / `render.go`): the context bar is a fixed positional gradient (`contextGradient`, one 24-bit RGB triple per segment rendered as truecolor `\x1b[38;2;R;G;Bm` via `fgRGB`, a smooth blue → yellow → orange ramp); the fill reveals it and the percentage takes the leading-edge color. Rate limits threshold at 70 / 85% (blue / yellow / red).
-- **Bracketed badges share one shape:** `lightGrey` brackets around a muted fill. The effort badge fills with `mutedGreen` (108), the rate window's reset time with `mutedBlue` (68). Badge fills are **fixed** — the reset time stays blue even when its usage percentage crosses into yellow or red, so the badge reads as a label rather than a second severity signal. The context bar's `[N%]` is the deliberate exception: it takes the leading-edge gradient color, because there the number *is* the severity.
+- **Bracketed badges share one shape:** `lightGrey` brackets around a muted fill. The effort badge fills with `mutedGreen` (108), the fast badge with `mutedOrange` (137), the rate window's reset time with `mutedBlue` (68). Badge fills are **fixed** — the reset time stays blue even when its usage percentage crosses into yellow or red, so the badge reads as a label rather than a second severity signal. The context bar's `[N%]` is the deliberate exception: it takes the leading-edge gradient color, because there the number *is* the severity.
 - **Ticket trackers** live in `internal/statusline/ticket.go`: each tracker is a `detectTicket<Name>` function returning `(label, text, url)`; `detectTicket` chains them, first match wins. To add a tracker (Linear, Asana, ...), write a new detector and add one line to the chain. The Shortcut detector links branches matching `sc-#####` to a story; the org slug comes from the `STATUSLINE_SHORTCUT_ORG` environment variable, and no link is produced when it is unset.
 
 ## Dependencies

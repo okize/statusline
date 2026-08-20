@@ -49,6 +49,13 @@ func parseInput(data []byte) (*Input, error) {
 		ContextSize: 200000,
 	}
 
+	if raw.FastMode != nil {
+		in.FastMode = *raw.FastMode
+	}
+	if raw.Cost != nil {
+		in.Cost = raw.Cost.TotalCostUSD
+	}
+
 	if raw.ContextWindow.ContextWindowSize != nil {
 		in.ContextSize = int(*raw.ContextWindow.ContextWindowSize)
 	}

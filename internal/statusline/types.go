@@ -10,6 +10,10 @@ type rawInput struct {
 	Effort struct {
 		Level *string `json:"level"`
 	} `json:"effort"`
+	FastMode *bool `json:"fast_mode"`
+	Cost     *struct {
+		TotalCostUSD *float64 `json:"total_cost_usd"`
+	} `json:"cost"`
 	Workspace struct {
 		CurrentDir  *string `json:"current_dir"`
 		GitWorktree *string `json:"git_worktree"`
@@ -48,7 +52,10 @@ type rawRateWindow struct {
 type Input struct {
 	ModelName   string
 	EffortLevel string
+	FastMode    bool
 	CWD         string
+
+	Cost *float64
 
 	ContextSize    int
 	UsedPct        float64

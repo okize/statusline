@@ -8,8 +8,9 @@ import (
 )
 
 // renderMain builds the full multi-line status output: a leading blank line,
-// line 1 (model + effort + context bar), line 2 (rate limits + cache + Out),
-// and line 3 (location + branch + optional PR badge and change stats). Shells
+// line 1 (model + effort/fast badges + context bar), line 2 (rate limits +
+// cost + cache + Out), and line 3 (location + branch + optional PR badge and
+// change stats). Shells
 // out to the git renderer for the git portions. columns == 0 means "no
 // truncation".
 func renderMain(in *Input, columns int) string {
@@ -17,6 +18,12 @@ func renderMain(in *Input, columns int) string {
 	effortDisplay := ""
 	if in.EffortLevel != "" {
 		effortDisplay = " " + lightGrey + "[" + mutedGreen + in.EffortLevel + lightGrey + "]" + reset
+	}
+
+	// Fast-mode badge: same bracketed shape as the effort badge, orange fill.
+	fastDisplay := ""
+	if in.FastMode {
+		fastDisplay = " " + lightGrey + "[" + mutedOrange + "fast" + lightGrey + "]" + reset
 	}
 
 	// Current directory, with $HOME collapsed to ~ and width-aware truncation.
@@ -68,15 +75,19 @@ func renderMain(in *Input, columns int) string {
 	gitBranchLine, gitStatsLine, gitSyncLine := renderGitLines(in.CWD, columns)
 
 	// Line 2 leads with the rate-limit windows when they exist; without them
-	// (API-key users) it starts at the cache segment rather than a bare bullet.
+	// (API-key users) it starts at the cost segment (or cache, when Claude Code
+	// sends no cost data) rather than a bare bullet.
 	usageLine := cacheDisplay + " • " + lightGrey + "Out: " + tokensOut + reset
+	if in.Cost != nil {
+		usageLine = lightGrey + fmt.Sprintf("$%.2f", *in.Cost) + reset + " • " + usageLine
+	}
 	if rateDisplay != "" {
 		usageLine = rateDisplay + " • " + usageLine
 	}
 
 	var sb strings.Builder
 	sb.WriteString("\n")
-	sb.WriteString(green + in.ModelName + reset + effortDisplay + " • " + contextDisplay + "\n")
+	sb.WriteString(green + in.ModelName + reset + effortDisplay + fastDisplay + " • " + contextDisplay + "\n")
 	sb.WriteString(usageLine + "\n")
 	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine, gitSyncLine) + "\n")
 	return sb.String()

@@ -10,18 +10,19 @@ import (
 // codes; they do not remap with the terminal theme. (CYAN and WHITE from the
 // original palette were unreferenced and are intentionally dropped.)
 const (
-	blue       = "\x1b[34m"
-	green      = "\x1b[32m"
-	yellow     = "\x1b[33m"
-	orange     = "\x1b[38;5;208m"
-	red        = "\x1b[31m"
-	lightGrey  = "\x1b[38;5;248m"
-	dimGrey    = "\x1b[38;5;242m"
-	linkBlue   = "\x1b[94m"
-	mutedGreen = "\x1b[38;5;108m"
-	mutedBlue  = "\x1b[38;5;68m"
-	mutedRed   = "\x1b[38;5;167m"
-	reset      = "\x1b[0m"
+	blue        = "\x1b[34m"
+	green       = "\x1b[32m"
+	yellow      = "\x1b[33m"
+	orange      = "\x1b[38;5;208m"
+	red         = "\x1b[31m"
+	lightGrey   = "\x1b[38;5;248m"
+	dimGrey     = "\x1b[38;5;242m"
+	linkBlue    = "\x1b[94m"
+	mutedGreen  = "\x1b[38;5;108m"
+	mutedBlue   = "\x1b[38;5;68m"
+	mutedOrange = "\x1b[38;5;137m"
+	mutedRed    = "\x1b[38;5;167m"
+	reset       = "\x1b[0m"
 )
 
 // contextGradient is the fixed positional context-bar gradient: one 24-bit RGB
