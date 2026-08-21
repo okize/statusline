@@ -22,7 +22,7 @@ func TestUsageGroup(t *testing.T) {
 	assertNotContains(t, "Out label is gone", out, "Out:")
 
 	colored := run(t, usageGroupPayload(tmp), 0)
-	assertContains(t, "cost is white", colored, "\x1b[37m$23.12\x1b[0m")
+	assertContains(t, "cost is white", colored, "\x1b[97m$23.12\x1b[0m")
 	assertContains(t, "added lines are mutedGreen", colored, "\x1b[38;5;108m+156")
 	assertContains(t, "removed lines are mutedRed", colored, "\x1b[38;5;167m−23")
 }

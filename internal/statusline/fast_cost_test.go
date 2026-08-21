@@ -54,7 +54,7 @@ func TestSessionCost(t *testing.T) {
 	assertNotContains(t, "no cost segment when cost is absent", out3, "$0")
 
 	out4 := run(t, costPayload(tmp, 0.42), 0)
-	assertContains(t, "cost is white", out4, "\x1b[37m$0.42\x1b[0m")
+	assertContains(t, "cost is white", out4, "\x1b[97m$0.42\x1b[0m")
 
 	// null vs absent: an empty cost object (or a null total_cost_usd) also
 	// drops the segment, matching the codebase's jq-style // defaulting.
