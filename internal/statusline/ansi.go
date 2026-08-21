@@ -17,7 +17,7 @@ const (
 	red        = "\x1b[31m"
 	lightGrey  = "\x1b[38;5;248m"
 	dimGrey    = "\x1b[38;5;242m"
-	white      = "\x1b[37m"
+	white      = "\x1b[97m"
 	linkBlue   = "\x1b[94m"
 	mutedGreen = "\x1b[38;5;108m"
 	mutedBlue  = "\x1b[38;5;68m"
