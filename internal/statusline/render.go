@@ -8,7 +8,7 @@ import (
 )
 
 // renderMain builds the full multi-line status output: a leading blank line,
-// line 1 (model + effort/fast badges + context bar), line 2 (rate limits +
+// line 1 (model + effort/fast/thinking badges + context bar), line 2 (rate limits +
 // cost + cache + Out), and line 3 (location + branch + optional PR badge and
 // change stats). Shells
 // out to the git renderer for the git portions. columns == 0 means "no
@@ -20,10 +20,15 @@ func renderMain(in *Input, columns int) string {
 		effortDisplay = " " + lightGrey + "[" + mutedGreen + in.EffortLevel + lightGrey + "]" + reset
 	}
 
-	// Fast-mode badge: same bracketed shape and green fill as the effort badge.
+	// Fast-mode and thinking badges: same bracketed shape and green fill as
+	// the effort badge.
 	fastDisplay := ""
 	if in.FastMode {
 		fastDisplay = " " + lightGrey + "[" + mutedGreen + "fast" + lightGrey + "]" + reset
+	}
+	thinkingDisplay := ""
+	if in.Thinking {
+		thinkingDisplay = " " + lightGrey + "[" + mutedGreen + "thinking" + lightGrey + "]" + reset
 	}
 
 	// Current directory, with $HOME collapsed to ~ and width-aware truncation.
@@ -87,7 +92,7 @@ func renderMain(in *Input, columns int) string {
 
 	var sb strings.Builder
 	sb.WriteString("\n")
-	sb.WriteString(green + in.ModelName + reset + effortDisplay + fastDisplay + " • " + contextDisplay + "\n")
+	sb.WriteString(green + in.ModelName + reset + effortDisplay + fastDisplay + thinkingDisplay + " • " + contextDisplay + "\n")
 	sb.WriteString(usageLine + "\n")
 	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine, gitSyncLine) + "\n")
 	return sb.String()

@@ -6,7 +6,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ## What it displays
 
-**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) and a `[fast]` badge when fast mode is on • context window gradient bar with bracketed percentage (`[42%]`)
+**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) plus `[fast]` and `[thinking]` badges when fast mode / extended thinking are on • context window gradient bar with bracketed percentage (`[42%]`)
 
 **Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • session cost (`$0.42`, omitted when Claude Code sends no cost data) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
@@ -31,7 +31,7 @@ Each arrow below is a ` • ` separator, so every line reads left to right exact
 flowchart TB
     subgraph ModelLine["Model line"]
         direction LR
-        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge + FastBadge<br/>[medium] [fast]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
+        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge + FastBadge + ThinkingBadge<br/>[medium] [fast] [thinking]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
     end
 
     subgraph UsageLine["Usage line"]
@@ -54,6 +54,7 @@ Every segment maps to exactly one producer:
 | `ModelName` | — | `renderMain` (`in.ModelName`) | never |
 | `EffortBadge` | — | `renderMain` (`effortDisplay`) | the model doesn't support effort |
 | `FastBadge` | — | `renderMain` (`fastDisplay`) | `fast_mode` is false or absent |
+| `ThinkingBadge` | — | `renderMain` (`thinkingDisplay`) | `thinking.enabled` is false or absent |
 | `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
 | `RateWindow` | `UsagePercent`, `ResetTime` badge | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently. The `ResetTime` badge alone is dropped when `resets_at` is absent |
 | `SessionCost` | — | `renderMain` (`fmt.Sprintf("$%.2f")`) | `cost.total_cost_usd` is absent |
@@ -80,7 +81,7 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
 | `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
 | `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
-| `internal/statusline/render.go` | Line 1 (model, effort, fast badge, context bar), line 2 (rate limits, cost, cache, out), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
+| `internal/statusline/render.go` | Line 1 (model, effort/fast/thinking badges, context bar), line 2 (rate limits, cost, cache, out), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
 | `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
