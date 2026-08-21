@@ -20,10 +20,10 @@ func renderMain(in *Input, columns int) string {
 		effortDisplay = " " + lightGrey + "[" + mutedGreen + in.EffortLevel + lightGrey + "]" + reset
 	}
 
-	// Fast-mode badge: same bracketed shape as the effort badge, orange fill.
+	// Fast-mode badge: same bracketed shape and green fill as the effort badge.
 	fastDisplay := ""
 	if in.FastMode {
-		fastDisplay = " " + lightGrey + "[" + mutedOrange + "fast" + lightGrey + "]" + reset
+		fastDisplay = " " + lightGrey + "[" + mutedGreen + "fast" + lightGrey + "]" + reset
 	}
 
 	// Current directory, with $HOME collapsed to ~ and width-aware truncation.

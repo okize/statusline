@@ -23,7 +23,7 @@ func TestFastBadge(t *testing.T) {
 	out := run(t, fastPayload(tmp, true), 0)
 	assertContains(t, "fast badge follows the effort badge", stripANSI(out), "Test [medium] [fast]")
 	assertContains(t, "fast badge has light-grey brackets and a muted fill", out,
-		"\x1b[38;5;248m[\x1b[38;5;137mfast\x1b[38;5;248m]\x1b[0m")
+		"\x1b[38;5;248m[\x1b[38;5;108mfast\x1b[38;5;248m]\x1b[0m")
 
 	out2 := stripANSI(run(t, fastPayload(tmp, false), 0))
 	assertNotContains(t, "no fast badge when fast_mode is false", out2, "[fast]")
