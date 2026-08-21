@@ -45,21 +45,21 @@ func TestSessionCost(t *testing.T) {
 	tmp := t.TempDir()
 
 	out := stripANSI(run(t, costPayload(tmp, 0.42), 0))
-	assertContains(t, "cost renders before the cache segment", out, "$0.42 • Cache: 90%")
+	assertContains(t, "cost renders before the usage group", out, "$0.42 [90% |")
 
 	out2 := stripANSI(run(t, costPayload(tmp, 12.3456), 0))
-	assertContains(t, "cost rounds to cents", out2, "$12.35 • Cache:")
+	assertContains(t, "cost rounds to cents", out2, "$12.35 [")
 
 	out3 := stripANSI(run(t, cachePayload(tmp), 0))
 	assertNotContains(t, "no cost segment when cost is absent", out3, "$0")
 
 	out4 := run(t, costPayload(tmp, 0.42), 0)
-	assertContains(t, "cost is light grey like its cache/out neighbors", out4, "\x1b[38;5;248m$0.42\x1b[0m")
+	assertContains(t, "cost is white", out4, "\x1b[37m$0.42\x1b[0m")
 
 	// null vs absent: an empty cost object (or a null total_cost_usd) also
 	// drops the segment, matching the codebase's jq-style // defaulting.
 	empty := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":10}},"cost":{"total_cost_usd":null}}`, tmp)
 	out5 := stripANSI(run(t, empty, 0))
 	assertNotContains(t, "no cost segment when total_cost_usd is null", out5, "$0")
-	assertContains(t, "line 2 still starts at the cache segment", out5, "\nCache: 90%")
+	assertContains(t, "line 2 still starts at the usage group", out5, "\n[90% |")
 }

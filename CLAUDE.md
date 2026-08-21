@@ -68,14 +68,14 @@ A thin `main` (root) plus the `statusline` implementation package:
 
 Output contract (three lines, after a leading blank line):
 1. model + `[effort]` (only when the model supports it) + `[fast]` / `[thinking]` (only when `fast_mode` / `thinking.enabled` is true) • context gradient bar + `[N%]`
-2. 5h/7d rate limits (absent for API-key users) • session cost `$N.NN` (only when `cost.total_cost_usd` is present) • `Cache:` hit rate and `Out:` tokens (most recent API call)
+2. 5h/7d rate limits (absent for API-key users) • usage group: white session cost + bracketed `[(+N −M) | cache% | out]` — lines added/removed (whole session), cache hit rate and output tokens (most recent API call). The cost part drops when `total_cost_usd` is absent/null; the lines part drops when either lines field is
 3. directory, or `[wt:name]` tag in place of the directory inside a worktree • git branch + `↑N ↓M` ahead/behind vs upstream (only when non-zero) • `PR #N (state)` badge (only when an open PR exists) • ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes` • relative sync time
 
-**Every separator is ` • `** — no pipes anywhere in the rendered output. `TestLineLayout` asserts this, so a new segment joined with ` | ` fails the suite.
+**Every segment separator is ` • `** — pipes exist only *inside* the usage group's brackets, where ` | ` joins the group's parts. `TestLineLayout` asserts both, so a new segment joined with ` | ` fails the suite.
 
 **Use the component vocabulary** (defined with a mermaid diagram and a segment→producer table in `README.md`): a **block** holds three **lines** (model / usage / workspace), each line holds ` • `-joined **segments**, and a segment holds **parts** that its producer assembles itself. Name new code and commits with those words — `buildXBadge` for a segment producer, not `renderXBit`. When you add or remove a segment, update the README table in the same change; it is the only place the full segment list is enumerated.
 
-Line 3 is assembled by `joinSegments`, which drops empty segments so an absent PR badge or a non-repo directory leaves no dangling separator. Line 2's rate segment carries no trailing separator — `renderMain` owns the ` • ` that attaches it to cache/out, so API-key users (no rate data) get a line that starts at `Cache:`.
+Line 3 is assembled by `joinSegments`, which drops empty segments so an absent PR badge or a non-repo directory leaves no dangling separator. Line 2's rate segment carries no trailing separator — `renderMain` owns the ` • ` that attaches it to the usage group, so API-key users (no rate data) get a line that starts at the group.
 
 `renderGitLines` returns three segments (branch, stats, sync) rather than two composed lines, because line 3 places the sync time at the far right while the `statusline git <dir>` subcommand still wants it next to the branch. `RenderGit` rejoins branch + sync to preserve that subcommand's two-line output.
 
@@ -90,7 +90,7 @@ Line 3 is assembled by `joinSegments`, which drops empty segments so an absent P
   - `rate_limits` (and each `five_hour` / `seven_day` window independently) appears only for Pro/Max subscribers after the first API response.
   - `context_window.used_percentage` may be `null` early; `renderMain` falls back to computing it from `current_usage` (input-only).
   - `pr.*` is absent until an open PR is found and removed once it merges/closes; `pr.review_state` may be independently absent. `worktree.name` appears only in `--worktree` sessions; `workspace.git_worktree` for any linked worktree. Resolution is `worktree.name // workspace.git_worktree // ""`.
-  - `fast_mode` is a plain boolean and `thinking.enabled` a nested one; absent and `false` both mean no `[fast]` / `[thinking]` badge. `cost.total_cost_usd` renders as `$N.NN` and the segment is omitted when the `cost` object is absent.
+  - `fast_mode` is a plain boolean and `thinking.enabled` a nested one; absent and `false` both mean no `[fast]` / `[thinking]` badge. `cost.total_cost_usd` renders as a white `$N.NN`; `cost.total_lines_added`/`total_lines_removed` render as `(+N −M)` (mutedGreen/mutedRed, U+2212 minus); the lines part needs both fields and drops when either is absent. The cost part drops when `total_cost_usd` is absent.
   - `effort.level` reflects the live session effort (including mid-session `/effort` changes) and is absent when the model doesn't support the effort parameter — the `[effort]` badge disappears.
 - **Width-aware truncation**: Claude Code (>= 2.1.153) sets `COLUMNS` before running the binary (`tput cols` does not work — output is captured). The directory truncates to `COLUMNS/3` (floor 20) and the displayed branch to `COLUMNS/4` (floor 15) via `truncateMiddle`; `COLUMNS` unset/0 means no truncation. Truncate plain text only — never strings that already contain ANSI codes. Detection logic (ticket tracker matching) must use the full branch, never the truncated display.
 - **Commit timestamps can be ahead of the system clock** — the sync-age math clamps negative diffs to 0 rather than rendering `synced -86400s ago`.

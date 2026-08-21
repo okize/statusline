@@ -53,7 +53,7 @@ func TestBothRateWindowsWithResets(t *testing.T) {
 	// A 7d window alone must still render, joined to cache/out by the bullet.
 	only7d := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":10}},"rate_limits":{"seven_day":{"used_percentage":55}}}`, tmp)
 	out = stripANSI(run(t, only7d, 0))
-	assertContains(t, "7d renders without a 5h window", out, "55% 7d • Cache:")
+	assertContains(t, "7d renders without a 5h window", out, "55% 7d • [")
 	assertNotContains(t, "no 5h segment when five_hour absent", out, "5h")
 }
 
@@ -68,7 +68,7 @@ func TestFormatTokens(t *testing.T) {
 
 	tmp := t.TempDir()
 	payload := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":42000}}}`, tmp)
-	assertContains(t, "Out: uses the abbreviated form", stripANSI(run(t, payload, 0)), "Out: 42k")
+	assertContains(t, "out part uses the abbreviated form", stripANSI(run(t, payload, 0)), "| 42k]")
 }
 
 // When used_percentage is null/absent, renderMain recomputes it from

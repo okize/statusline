@@ -15,7 +15,9 @@ type rawInput struct {
 		Enabled *bool `json:"enabled"`
 	} `json:"thinking"`
 	Cost *struct {
-		TotalCostUSD *float64 `json:"total_cost_usd"`
+		TotalCostUSD      *float64 `json:"total_cost_usd"`
+		TotalLinesAdded   *float64 `json:"total_lines_added"`
+		TotalLinesRemoved *float64 `json:"total_lines_removed"`
 	} `json:"cost"`
 	Workspace struct {
 		CurrentDir  *string `json:"current_dir"`
@@ -59,7 +61,9 @@ type Input struct {
 	Thinking    bool
 	CWD         string
 
-	Cost *float64
+	Cost         *float64
+	LinesAdded   *int
+	LinesRemoved *int
 
 	ContextSize    int
 	UsedPct        float64

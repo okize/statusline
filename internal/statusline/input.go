@@ -25,6 +25,14 @@ func floatToInt(p *float64) int {
 	return int(*p)
 }
 
+func floatToIntPtr(p *float64) *int {
+	if p == nil {
+		return nil
+	}
+	v := int(*p)
+	return &v
+}
+
 func floatToInt64Ptr(p *float64) *int64 {
 	if p == nil {
 		return nil
@@ -57,6 +65,8 @@ func parseInput(data []byte) (*Input, error) {
 	}
 	if raw.Cost != nil {
 		in.Cost = raw.Cost.TotalCostUSD
+		in.LinesAdded = floatToIntPtr(raw.Cost.TotalLinesAdded)
+		in.LinesRemoved = floatToIntPtr(raw.Cost.TotalLinesRemoved)
 	}
 
 	if raw.ContextWindow.ContextWindowSize != nil {
