@@ -11,7 +11,10 @@ type rawInput struct {
 		Level *string `json:"level"`
 	} `json:"effort"`
 	FastMode *bool `json:"fast_mode"`
-	Cost     *struct {
+	Thinking *struct {
+		Enabled *bool `json:"enabled"`
+	} `json:"thinking"`
+	Cost *struct {
 		TotalCostUSD *float64 `json:"total_cost_usd"`
 	} `json:"cost"`
 	Workspace struct {
@@ -53,6 +56,7 @@ type Input struct {
 	ModelName   string
 	EffortLevel string
 	FastMode    bool
+	Thinking    bool
 	CWD         string
 
 	Cost *float64
