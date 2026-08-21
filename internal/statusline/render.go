@@ -54,19 +54,6 @@ func renderMain(in *Input, columns int) string {
 	}
 	contextDisplay := buildContextDisplay(usedPct, initialized)
 
-	// Cache hit rate of the most recent API call (cache_read / total input).
-	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
-	cacheDisplay := lightGrey + "Cache: --%" + reset
-	if totalIn > 0 {
-		cachePct := in.CurCacheRead * 100 / totalIn
-		cacheDisplay = lightGrey + "Cache: " + strconv.Itoa(cachePct) + "%" + reset
-	}
-
-	tokensOut := "--"
-	if initialized {
-		tokensOut = formatTokens(in.CurOutput)
-	}
-
 	rateDisplay := buildRateDisplay(in, initialized)
 
 	// Inside a worktree the [wt:name] tag replaces the directory.
@@ -80,12 +67,8 @@ func renderMain(in *Input, columns int) string {
 	gitBranchLine, gitStatsLine, gitSyncLine := renderGitLines(in.CWD, columns)
 
 	// Line 2 leads with the rate-limit windows when they exist; without them
-	// (API-key users) it starts at the cost segment (or cache, when Claude Code
-	// sends no cost data) rather than a bare bullet.
-	usageLine := cacheDisplay + " • " + lightGrey + "Out: " + tokensOut + reset
-	if in.Cost != nil {
-		usageLine = lightGrey + fmt.Sprintf("$%.2f", *in.Cost) + reset + " • " + usageLine
-	}
+	// (API-key users) it starts at the usage group rather than a bare bullet.
+	usageLine := buildUsageGroup(in, initialized)
 	if rateDisplay != "" {
 		usageLine = rateDisplay + " • " + usageLine
 	}
@@ -108,6 +91,39 @@ func joinSegments(segments ...string) string {
 		}
 	}
 	return strings.Join(present, " • ")
+}
+
+// buildUsageGroup renders line 2's usage segment: a white session cost
+// followed by a bracketed group — `$23.12 [(+156 −23) | 99% | 528]` — holding
+// lines added/removed (mutedGreen/mutedRed), the cache hit rate of the most
+// recent API call, and its output tokens. Parts inside the brackets join with
+// " | " — the one place pipes are allowed. The cost and lines parts drop when
+// Claude Code sends no data for them; cache and out fall back to the `--`
+// skeleton placeholders instead.
+func buildUsageGroup(in *Input, initialized bool) string {
+	cachePart := "--%"
+	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
+	if totalIn > 0 {
+		cachePart = strconv.Itoa(in.CurCacheRead*100/totalIn) + "%"
+	}
+
+	outPart := "--"
+	if initialized {
+		outPart = formatTokens(in.CurOutput)
+	}
+
+	linesPart := ""
+	if in.LinesAdded != nil && in.LinesRemoved != nil {
+		linesPart = "(" + mutedGreen + "+" + strconv.Itoa(*in.LinesAdded) +
+			" " + mutedRed + "−" + strconv.Itoa(*in.LinesRemoved) + lightGrey + ") | "
+	}
+
+	group := lightGrey + "[" + linesPart + cachePart + " | " + outPart + "]" + reset
+
+	if in.Cost != nil {
+		return white + fmt.Sprintf("$%.2f", *in.Cost) + reset + " " + group
+	}
+	return group
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form

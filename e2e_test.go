@@ -114,8 +114,8 @@ func TestE2EStdinOutputShape(t *testing.T) {
 	if !strings.Contains(l2, "18% 5h") || !strings.Contains(l2, "55% 7d") {
 		t.Errorf("line 2 missing rate limits: %q", l2)
 	}
-	if !strings.Contains(l2, "Cache: 58%") || !strings.Contains(l2, "Out: 12k") {
-		t.Errorf("line 2 missing cache/out: %q", l2)
+	if !strings.Contains(l2, "[58% | 12k]") {
+		t.Errorf("line 2 missing the usage group: %q", l2)
 	}
 	if !strings.Contains(l3, repo) || !strings.Contains(l3, "synced") {
 		t.Errorf("line 3 missing directory or sync age: %q", l3)
@@ -126,7 +126,8 @@ func TestE2EStdinOutputShape(t *testing.T) {
 	if !strings.HasSuffix(l3, "ago") {
 		t.Errorf("line 3 must end with the sync age: %q", l3)
 	}
-	for i, line := range []string{l1, l2, l3} {
+	// Pipes exist only inside the usage group's brackets on line 2.
+	for i, line := range []string{l1, l3} {
 		if strings.Contains(line, "|") {
 			t.Errorf("line %d separates with bullets, not pipes: %q", i+1, line)
 		}

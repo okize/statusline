@@ -8,7 +8,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 **Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) plus `[fast]` and `[thinking]` badges when fast mode / extended thinking are on • context window gradient bar with bracketed percentage (`[42%]`)
 
-**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • session cost (`$0.42`, omitted when Claude Code sends no cost data) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • usage group: white session cost, then bracketed lines added/removed (green/red, whole session), cache hit rate, and output tokens of the most recent API call (`$23.12 [(+156 −23) | 99% | 528]`). The cost part drops when Claude Code sends no cost figure; the lines part drops when either lines count is missing. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 3:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree • git branch with ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero) • pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) • Shortcut ticket link (if branch matches `sc-#####`) and staged/unstaged file counts with insertion/deletion stats • time of the last commit
 
@@ -36,7 +36,7 @@ flowchart TB
 
     subgraph UsageLine["Usage line"]
         direction LR
-        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> SessionCost["SessionCost<br/>$0.42"] -- "•" --> CacheRate["CacheRate<br/>Cache: 85%"] -- "•" --> OutputCount["OutputCount<br/>Out: 613"]
+        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> UsageGroup["UsageGroup<br/>$23.12 [(+156 −23) | 99% | 528]"]
     end
 
     subgraph WorkspaceLine["Workspace line"]
@@ -57,9 +57,7 @@ Every segment maps to exactly one producer:
 | `ThinkingBadge` | — | `renderMain` (`thinkingDisplay`) | `thinking.enabled` is false or absent |
 | `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
 | `RateWindow` | `UsagePercent`, `ResetTime` badge | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently. The `ResetTime` badge alone is dropped when `resets_at` is absent |
-| `SessionCost` | — | `renderMain` (`fmt.Sprintf("$%.2f")`) | `cost.total_cost_usd` is absent |
-| `CacheRate` | — | `renderMain` (`cacheDisplay`) | never — `--%` pre-first-call |
-| `OutputCount` | — | `renderMain` + `formatTokens` | never — `--` pre-first-call |
+| `UsageGroup` | `SessionCost`, `LinesChanged`, `CacheRate`, `OutputCount` | `buildUsageGroup` | never — cache/out show `--` placeholders pre-first-call; the cost part drops when `total_cost_usd` is absent/null, the lines part when either lines field is |
 | `LocationTag` | — | `collapseHome` + `truncateMiddle`; the `WorktreeTag` variant in `renderMain` | never |
 | `BranchSegment` | `BranchName`, `AheadBehind` | `renderGitLines` (`gitBranch` + `gitAheadBehind`) | non-repo (replaced by `not a git repo`) |
 | `PRBadge` | `PRNumber`, `ReviewState` | `buildPRBadge` | no open PR |
@@ -69,7 +67,7 @@ Every segment maps to exactly one producer:
 
 Two structural rules follow from the vocabulary:
 
-- **Segments join with ` • `, never a pipe.** `joinSegments` does the joining and drops empties, so an absent `PRBadge` or a non-repo directory leaves no stray separator.
+- **Segments join with ` • `, never a pipe.** `joinSegments` does the joining and drops empties, so an absent `PRBadge` or a non-repo directory leaves no stray separator. The one place pipes appear is *inside* the `UsageGroup` brackets, joining that segment's parts.
 - **Parts are the producer's business.** A producer returns its segment fully assembled, including the separators *between its own parts*; the caller only places segments.
 
 ## Files
@@ -81,7 +79,7 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
 | `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
 | `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
-| `internal/statusline/render.go` | Line 1 (model, effort/fast/thinking badges, context bar), line 2 (rate limits, cost, cache, out), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
+| `internal/statusline/render.go` | Line 1 (model, effort/fast/thinking badges, context bar), line 2 (rate limits, usage group), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
 | `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
