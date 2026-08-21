@@ -61,17 +61,17 @@ A thin `main` (root) plus the `statusline` implementation package:
 - **internal/statusline/** (`package statusline`) — the renderer and its tests:
   - **statusline.go** — exported API: `Render(data, columns)` (decode + full status) and `RenderGit(cwd, columns)` (the two git lines).
   - **input.go / types.go** — decode the stdin JSON into a struct and apply the defaults the old single `jq` call did. Optional/nullable fields are pointers so absent/null can be distinguished; integer-ish fields are decoded as `float64` for tolerance (see gotchas).
-  - **render.go** — `renderMain` (full assembly + exact newline structure), the context bar/gradient, rate-limit segment, cache/out, session cost, effort/fast/thinking badges, worktree tag, and PR badge.
+  - **render.go** — `renderMain` (full assembly + exact newline structure), the context bar/gradient, rate-limit segment, cache/out, session cost, lines changed, effort/fast/thinking badges, worktree tag, and PR badge.
   - **git.go** — git helper. `renderGitLines(cwd, columns) (branchLine, statsLine, syncLine string)`: branch, ahead/behind (`rev-list --left-right --count`), sync age, and change stats (`status --porcelain` parsed once, `--shortstat` only when a count > 0). Uses `--no-optional-locks` throughout. In Go the segments are just return values — there is no two-process boundary or positional `sed` split to keep in sync. Callers place them: `renderMain` spreads them across line 3, `RenderGit` rejoins branch + sync for the subcommand.
   - **ticket.go** — ticket-tracker detection (see below).
   - **ansi.go** — ANSI palette constants, the `contextGradient` array, `truncateMiddle`, and small formatters (`formatTokens`, `rateLimitColor`, `formatResetTime`/`resetLayout`).
 
 Output contract (three lines, after a leading blank line):
 1. model + `[effort]` (only when the model supports it) + `[fast]` / `[thinking]` (only when `fast_mode` / `thinking.enabled` is true) • context gradient bar + `[N%]`
-2. 5h/7d rate limits (absent for API-key users) • usage group: white session cost + bracketed `[(+N −M) | cache% | out]` — lines added/removed (whole session), cache hit rate and output tokens (most recent API call). The cost part drops when `total_cost_usd` is absent/null; the lines part drops when either lines field is
+2. 5h/7d rate limits (absent for API-key users) • white session cost `$N.NN` • lines added/removed `(+N −M)` (whole session) • bracketed `[cache% / out]` — cache hit rate and output tokens (most recent API call). The cost segment drops when `total_cost_usd` is absent/null; the lines segment drops when either lines field is
 3. directory, or `[wt:name]` tag in place of the directory inside a worktree • git branch + `↑N ↓M` ahead/behind vs upstream (only when non-zero) • `PR #N (state)` badge (only when an open PR exists) • ticket link (only if a tracker matches the branch, e.g. Shortcut `sc-#####`) + staged/unstaged stats, or `No pending changes` • relative sync time
 
-**Every segment separator is ` • `** — pipes exist only *inside* the usage group's brackets, where ` | ` joins the group's parts. `TestLineLayout` asserts both, so a new segment joined with ` | ` fails the suite.
+**Every segment separator is ` • `** — no pipes anywhere in the rendered output; the cache/out pair inside its brackets joins with ` / `. `TestLineLayout` asserts this, so a new segment joined with ` | ` fails the suite.
 
 **Use the component vocabulary** (defined with a mermaid diagram and a segment→producer table in `README.md`): a **block** holds three **lines** (model / usage / workspace), each line holds ` • `-joined **segments**, and a segment holds **parts** that its producer assembles itself. Name new code and commits with those words — `buildXBadge` for a segment producer, not `renderXBit`. When you add or remove a segment, update the README table in the same change; it is the only place the full segment list is enumerated.
 

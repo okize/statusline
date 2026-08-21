@@ -41,7 +41,7 @@ func TestContextBar(t *testing.T) {
 func TestCacheHitRate(t *testing.T) {
 	tmp := t.TempDir()
 	out := run(t, cachePayload(tmp), 0)
-	assertContains(t, "cache hit rate computed from current_usage", out, "[90% |")
+	assertContains(t, "cache hit rate computed from current_usage", out, "[90% /")
 	assertNotContains(t, "In tokens no longer shown", out, "In:")
 	assertNotContains(t, "no placeholders once usage data arrives", out, "--%")
 }
@@ -102,8 +102,8 @@ func TestPreFirstCallSkeleton(t *testing.T) {
 	assertContains(t, "skeleton shows 7d rate placeholder", out, "--% 7d")
 	assertContains(t, "skeleton shows context placeholder", out, "[--%]")
 	assertNotContains(t, "skeleton drops the token fraction", out, "(--/")
-	assertContains(t, "skeleton shows cache and out placeholders", out, "[--% | --]")
-	assertNotContains(t, "skeleton does not show a zero out count", out, "| 0]")
+	assertContains(t, "skeleton shows cache and out placeholders", out, "[--% / --]")
+	assertNotContains(t, "skeleton does not show a zero out count", out, "/ 0]")
 }
 
 func TestGradient(t *testing.T) {
@@ -187,7 +187,7 @@ func TestLineLayout(t *testing.T) {
 
 	assertContains(t, "5h window moves to line 2", line2, "24% 5h [")
 	assertContains(t, "7d window moves to line 2", line2, "41% 7d [")
-	assertContains(t, "usage group moves to line 2", line2, "[90% | 613]")
+	assertContains(t, "usage group moves to line 2", line2, "[90% / 613]")
 	assertNotContains(t, "no dangling separator before the group", line2, "7d | ")
 	assertNotContains(t, "context bar does not repeat on line 2", line2, "■")
 
@@ -195,17 +195,9 @@ func TestLineLayout(t *testing.T) {
 	assertContains(t, "git line merges into line 3", line3, "not a git repo")
 	assertContains(t, "PR badge merges into line 3", line3, "PR #1234")
 
-	// Segments join with bullets everywhere; pipes exist only inside the usage
-	// group's brackets on line 2.
-	for i, line := range []string{line1, line3} {
+	for i, line := range []string{line1, line2, line3} {
 		assertNotContains(t, fmt.Sprintf("line %d separates with bullets, not pipes", i+1), line, "|")
 	}
-	groupStart, groupEnd := strings.Index(line2, "[90%"), strings.LastIndex(line2, "]")
-	if groupStart < 0 || groupEnd < groupStart {
-		t.Fatalf("usage group brackets not found on line 2: %q", line2)
-	}
-	assertNotContains(t, "line 2 has no pipes before the group's brackets", line2[:groupStart], "|")
-	assertNotContains(t, "line 2 has no pipes after the group's brackets", line2[groupEnd:], "|")
 }
 
 // With no rate-limit data (API-key users) line 2 leads with the cache segment
@@ -215,7 +207,7 @@ func TestLineLayoutWithoutRateLimits(t *testing.T) {
 	lines := renderLines(t, cachePayload(tmp), 0)
 
 	line2 := stripANSI(lines[1])
-	assertEqual(t, "line 2 is the usage group only", line2, "[90% | 10]")
+	assertEqual(t, "line 2 is the usage group only", line2, "[90% / 10]")
 }
 
 // Before the first API call the skeleton keeps the same shape: dim bar on line
@@ -228,7 +220,7 @@ func TestLineLayoutSkeleton(t *testing.T) {
 	assertContains(t, "skeleton bar stays on line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [--%]")
 	assertNotContains(t, "skeleton rate placeholders leave line 1", line1, "--% 5h")
 	assertEqual(t, "skeleton line 2 holds rate and group placeholders", line2,
-		"--% 5h • --% 7d • [--% | --]")
+		"--% 5h • --% 7d • [--% / --]")
 }
 
 // Line 3 orders its segments location, branch, PR, change stats, sync age —

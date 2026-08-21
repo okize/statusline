@@ -45,10 +45,10 @@ func TestSessionCost(t *testing.T) {
 	tmp := t.TempDir()
 
 	out := stripANSI(run(t, costPayload(tmp, 0.42), 0))
-	assertContains(t, "cost renders before the usage group", out, "$0.42 [90% |")
+	assertContains(t, "cost renders before the usage group", out, "$0.42 • [90% /")
 
 	out2 := stripANSI(run(t, costPayload(tmp, 12.3456), 0))
-	assertContains(t, "cost rounds to cents", out2, "$12.35 [")
+	assertContains(t, "cost rounds to cents", out2, "$12.35 •")
 
 	out3 := stripANSI(run(t, cachePayload(tmp), 0))
 	assertNotContains(t, "no cost segment when cost is absent", out3, "$0")
@@ -61,5 +61,5 @@ func TestSessionCost(t *testing.T) {
 	empty := fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":10}},"cost":{"total_cost_usd":null}}`, tmp)
 	out5 := stripANSI(run(t, empty, 0))
 	assertNotContains(t, "no cost segment when total_cost_usd is null", out5, "$0")
-	assertContains(t, "line 2 still starts at the usage group", out5, "\n[90% |")
+	assertContains(t, "line 2 still starts at the usage group", out5, "\n[90% /")
 }

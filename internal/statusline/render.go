@@ -93,13 +93,12 @@ func joinSegments(segments ...string) string {
 	return strings.Join(present, " • ")
 }
 
-// buildUsageGroup renders line 2's usage segment: a white session cost
-// followed by a bracketed group — `$23.12 [(+156 −23) | 99% | 528]` — holding
-// lines added/removed (mutedGreen/mutedRed), the cache hit rate of the most
-// recent API call, and its output tokens. Parts inside the brackets join with
-// " | " — the one place pipes are allowed. The cost and lines parts drop when
-// Claude Code sends no data for them; cache and out fall back to the `--`
-// skeleton placeholders instead.
+// buildUsageGroup renders line 2's usage area as up to three ` • `-joined
+// segments — `$23.12 • (+156 −23) • [99% / 528]` — a white session cost, lines
+// added/removed (mutedGreen/mutedRed), and a bracketed pair holding the cache
+// hit rate and output tokens of the most recent API call, joined by " / ". The
+// cost and lines segments drop when Claude Code sends no data for them; cache
+// and out fall back to the `--` skeleton placeholders instead.
 func buildUsageGroup(in *Input, initialized bool) string {
 	cachePart := "--%"
 	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
@@ -112,18 +111,16 @@ func buildUsageGroup(in *Input, initialized bool) string {
 		outPart = formatTokens(in.CurOutput)
 	}
 
-	linesPart := ""
-	if in.LinesAdded != nil && in.LinesRemoved != nil {
-		linesPart = "(" + mutedGreen + "+" + strconv.Itoa(*in.LinesAdded) +
-			" " + mutedRed + "−" + strconv.Itoa(*in.LinesRemoved) + lightGrey + ") | "
-	}
-
-	group := lightGrey + "[" + linesPart + cachePart + " | " + outPart + "]" + reset
-
+	costSegment := ""
 	if in.Cost != nil {
-		return white + fmt.Sprintf("$%.2f", *in.Cost) + reset + " " + group
+		costSegment = white + fmt.Sprintf("$%.2f", *in.Cost) + reset
 	}
-	return group
+	linesSegment := ""
+	if in.LinesAdded != nil && in.LinesRemoved != nil {
+		linesSegment = lightGrey + "(" + mutedGreen + "+" + strconv.Itoa(*in.LinesAdded) +
+			" " + mutedRed + "−" + strconv.Itoa(*in.LinesRemoved) + lightGrey + ")" + reset
+	}
+	return joinSegments(costSegment, linesSegment, lightGrey+"["+cachePart+" / "+outPart+"]"+reset)
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form
@@ -161,7 +158,7 @@ func buildContextDisplay(pct int, initialized bool) string {
 }
 
 // buildRateDisplay renders the 5h/7d rate-limit segment. Before the first API
-// call (uninitialized and no rate data) it shows the "--% 5h | --% 7d"
+// call (uninitialized and no rate data) it shows the "--% 5h • --% 7d"
 // skeleton; once rate data is present it shows whichever windows exist, colored
 // by usage. API-key users (initialized, no rate data) get "". The caller owns
 // the separator that attaches this to the rest of the line.
