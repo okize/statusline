@@ -6,9 +6,9 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ## What it displays
 
-**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) • context window gradient bar with bracketed percentage (`[42%]`)
+**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) and a `[fast]` badge when fast mode is on • context window gradient bar with bracketed percentage (`[42%]`)
 
-**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • session cost (`$0.42`, omitted when Claude Code sends no cost data) • cache hit rate and output tokens of the most recent API call. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 3:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree • git branch with ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero) • pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) • Shortcut ticket link (if branch matches `sc-#####`) and staged/unstaged file counts with insertion/deletion stats • time of the last commit
 
@@ -31,12 +31,12 @@ Each arrow below is a ` • ` separator, so every line reads left to right exact
 flowchart TB
     subgraph ModelLine["Model line"]
         direction LR
-        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge<br/>[medium]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
+        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge + FastBadge<br/>[medium] [fast]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
     end
 
     subgraph UsageLine["Usage line"]
         direction LR
-        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> CacheRate["CacheRate<br/>Cache: 85%"] -- "•" --> OutputCount["OutputCount<br/>Out: 613"]
+        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> SessionCost["SessionCost<br/>$0.42"] -- "•" --> CacheRate["CacheRate<br/>Cache: 85%"] -- "•" --> OutputCount["OutputCount<br/>Out: 613"]
     end
 
     subgraph WorkspaceLine["Workspace line"]
@@ -53,8 +53,10 @@ Every segment maps to exactly one producer:
 |---------|-------|-------------|--------------|
 | `ModelName` | — | `renderMain` (`in.ModelName`) | never |
 | `EffortBadge` | — | `renderMain` (`effortDisplay`) | the model doesn't support effort |
+| `FastBadge` | — | `renderMain` (`fastDisplay`) | `fast_mode` is false or absent |
 | `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
 | `RateWindow` | `UsagePercent`, `ResetTime` badge | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently. The `ResetTime` badge alone is dropped when `resets_at` is absent |
+| `SessionCost` | — | `renderMain` (`fmt.Sprintf("$%.2f")`) | `cost.total_cost_usd` is absent |
 | `CacheRate` | — | `renderMain` (`cacheDisplay`) | never — `--%` pre-first-call |
 | `OutputCount` | — | `renderMain` + `formatTokens` | never — `--` pre-first-call |
 | `LocationTag` | — | `collapseHome` + `truncateMiddle`; the `WorktreeTag` variant in `renderMain` | never |
@@ -78,7 +80,7 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
 | `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
 | `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
-| `internal/statusline/render.go` | Line 1 (model, effort, context bar), line 2 (rate limits, cache, out), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
+| `internal/statusline/render.go` | Line 1 (model, effort, fast badge, context bar), line 2 (rate limits, cost, cache, out), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
 | `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
