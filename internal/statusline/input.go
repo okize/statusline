@@ -60,9 +60,6 @@ func parseInput(data []byte) (*Input, error) {
 	if raw.FastMode != nil {
 		in.FastMode = *raw.FastMode
 	}
-	if raw.Thinking != nil && raw.Thinking.Enabled != nil {
-		in.Thinking = *raw.Thinking.Enabled
-	}
 	if raw.Cost != nil {
 		in.Cost = raw.Cost.TotalCostUSD
 		in.LinesAdded = floatToIntPtr(raw.Cost.TotalLinesAdded)
