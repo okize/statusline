@@ -1,0 +1,48 @@
+name: Screenshot
+
+# Keeps examples/statusline.svg (embedded in README.md) in sync with the
+# renderer. Runs on pushes to main that could change the rendered output,
+# regenerates the screenshot, and commits it when the bytes differ. The commit
+# touches only the SVG, which is outside the paths filter below, so it cannot
+# retrigger this workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.go'
+      - go.mod
+      - Makefile
+      - scripts/screenshot.sh
+      - examples/stdin-payload-example.json
+      - .github/workflows/screenshot.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshot
+  cancel-in-progress: false
+
+jobs:
+  screenshot:
+    name: screenshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: regenerate
+        run: make screenshot
+      - name: commit if changed
+        run: |
+          if ! git diff --quiet -- examples/statusline.svg; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add examples/statusline.svg
+            git commit -m "chore: refresh README screenshot"
+            # If another push lands mid-run and conflicts, the rebase fails the
+            # job; rerunning the workflow is the fix.
+            git pull --rebase origin main
+            git push
+          fi

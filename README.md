@@ -4,6 +4,10 @@
 
 Custom status line for Claude Code that displays model info, context window usage, rate limits, and git status directly in the terminal.
 
+![The status line rendered from the example payload](examples/statusline.svg)
+
+The screenshot is generated from `examples/stdin-payload-example.json` by `make screenshot` and refreshed automatically when the rendered output changes (see [Development](#development)).
+
 ## What it displays
 
 **Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) plus a `[fast]` badge when fast mode is on • context window gradient bar with bracketed percentage (`[42%]`)
@@ -158,3 +162,23 @@ drives the context bar (the committed sample sets it to `100` for a full bar),
 `rate_limits` the 5h/7d segments, `pr` the PR badge. The location and git lines
 read the real repository at `workspace.current_dir`, so point that at an actual
 checkout to see branch, ahead/behind, and ticket output.
+
+### Screenshot
+
+The screenshot at the top of this README is `examples/statusline.svg`.
+Regenerate it with:
+
+```bash
+make screenshot
+```
+
+This builds the binary, pipes the example payload through it
+(`scripts/screenshot.sh` swaps `workspace.current_dir` for a throwaway
+fixture repo so the git segments render deterministically), and converts the
+ANSI output to SVG with [freeze](https://github.com/charmbracelet/freeze).
+Requires `jq` and, on the first run, network access to fetch freeze.
+
+You rarely need to run it by hand: a workflow
+(`.github/workflows/screenshot.yml`) regenerates the file on every push to
+`main` that touches the renderer or the screenshot pipeline, and commits it
+when the output changed.
