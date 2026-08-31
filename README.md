@@ -6,7 +6,7 @@ Custom status line for Claude Code that displays model info, context window usag
 
 ![The status line rendered from the example payload](examples/statusline.svg)
 
-The screenshot is generated from `examples/stdin-payload-example.json` by `make screenshot` and refreshed automatically when the rendered output changes (see [Development](#development)).
+_Note: the screenshot above is generated from [mock json data](examples/stdin-payload-example.json)._
 
 ## What it displays
 
