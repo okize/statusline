@@ -1,11 +1,17 @@
 BINARY := statusline
 
-.PHONY: build test coverage coverage-html vet lint fmt clean
+.PHONY: build test coverage coverage-html vet lint fmt clean screenshot
 
 # Build the statusline binary. Point statusLine.command in settings.json at the
 # resulting ./statusline.
 build:
 	go build -o $(BINARY) .
+
+# Regenerate examples/statusline.svg, the screenshot embedded in README.md.
+# CI re-runs this on pushes to main and commits the result when it changes
+# (.github/workflows/screenshot.yml).
+screenshot: build
+	./scripts/screenshot.sh
 
 test:
 	go test ./...
