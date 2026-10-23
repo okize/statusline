@@ -106,4 +106,4 @@ Line 3 is assembled by `joinSegments`, which drops empty segments so an absent P
 
 ## Dependencies
 
-Go 1.24+ (build), `git` (runtime). golangci-lint is optional locally (`make lint`) but enforced in CI. The pinned toolchain is in `.tool-versions` (`golang 1.25.7`).
+Go 1.24+ (build), `git` (runtime). golangci-lint is optional locally (`make lint`) but enforced in CI. The pinned toolchain is in `.tool-versions` (`golang 1.26.5`).
