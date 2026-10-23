@@ -86,11 +86,35 @@ func formatResetTime(epoch *int64, window string) string {
 	return time.Unix(*epoch, 0).Local().Format(resetLayout(window))
 }
 
+// clockLayout is the time-only layout shared by the 5h reset badge and the
+// cache badge.
+const clockLayout = "3:04 PM"
+
+// formatClockTime renders an epoch timestamp as a local clock time ("3:04 PM").
+func formatClockTime(epoch int64) string {
+	return time.Unix(epoch, 0).Local().Format(clockLayout)
+}
+
 // resetLayout is the Go time layout for each reset window: 5h -> "3:04 PM",
 // 7d -> "1/2/06 3:04 PM" (replacing bash's `%-I:%M %p` / `%-m/%-d/%y %-I:%M %p`).
 func resetLayout(window string) string {
 	if window == "5h" {
-		return "3:04 PM"
+		return clockLayout
 	}
-	return "1/2/06 3:04 PM"
+	return "1/2/06 " + clockLayout
+}
+
+// formatDuration renders a wall-clock duration in milliseconds at the coarsest
+// useful unit: "45s" under a minute, "12m" under an hour, "1h 12m" beyond.
+// Each unit truncates, like formatTokens; a negative duration clamps to 0s,
+// like the sync age.
+func formatDuration(ms int64) string {
+	secs := max(ms, 0) / 1000
+	switch {
+	case secs < 60:
+		return strconv.FormatInt(secs, 10) + "s"
+	case secs < 3600:
+		return strconv.FormatInt(secs/60, 10) + "m"
+	}
+	return strconv.FormatInt(secs/3600, 10) + "h " + strconv.FormatInt(secs%3600/60, 10) + "m"
 }

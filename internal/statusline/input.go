@@ -62,8 +62,14 @@ func parseInput(data []byte) (*Input, error) {
 	}
 	if raw.Cost != nil {
 		in.Cost = raw.Cost.TotalCostUSD
+		in.DurationMS = floatToInt64Ptr(raw.Cost.TotalDurationMS)
 		in.LinesAdded = floatToIntPtr(raw.Cost.TotalLinesAdded)
 		in.LinesRemoved = floatToIntPtr(raw.Cost.TotalLinesRemoved)
+	}
+	if pc := raw.PromptCache; pc != nil {
+		in.PromptCacheObserved = pc.CachingObserved != nil && *pc.CachingObserved
+		in.PromptCacheWarm = pc.Warm != nil && *pc.Warm
+		in.PromptCacheExpiresAt = floatToInt64Ptr(pc.ExpiresAt)
 	}
 
 	if raw.ContextWindow.ContextWindowSize != nil {

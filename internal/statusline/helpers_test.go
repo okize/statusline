@@ -124,10 +124,10 @@ func effortPayload(cwd string) string {
 }
 
 // layoutPayload carries usage, both rate-limit windows (with reset times), an
-// effort level and a PR, so a single render exercises every segment the
-// three-line layout places.
+// effort level, a cold prompt cache, a session time and a PR, so a single
+// render exercises every segment the three-line layout places.
 func layoutPayload(cwd string) string {
-	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":613}},"rate_limits":{"five_hour":{"used_percentage":24,"resets_at":1788000000},"seven_day":{"used_percentage":41,"resets_at":1788400000}},"effort":{"level":"medium"},"pr":{"number":1234,"url":"https://github.com/okize/statusline/pull/1234","review_state":"pending"}}`, cwd)
+	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":1000,"cache_creation_input_tokens":9000,"cache_read_input_tokens":90000,"output_tokens":613}},"rate_limits":{"five_hour":{"used_percentage":24,"resets_at":1788000000},"seven_day":{"used_percentage":41,"resets_at":1788400000}},"effort":{"level":"medium"},"prompt_cache":{"warm":false,"caching_observed":true,"expires_at":null},"cost":{"total_duration_ms":4320000},"pr":{"number":1234,"url":"https://github.com/okize/statusline/pull/1234","review_state":"pending"}}`, cwd)
 }
 
 // ratePayloadWithReset is ratePayload plus a resets_at, so the reset-time badge

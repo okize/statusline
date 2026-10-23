@@ -10,9 +10,9 @@ _Note: the screenshot above is generated from [mock json data](examples/stdin-pa
 
 ## What it displays
 
-**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) plus a `[fast]` badge when fast mode is on • context window gradient bar with bracketed percentage (`[42%]`)
+**Line 1:** Model name with bracketed reasoning effort (`Fable 5 [xhigh]`, omitted when the model doesn't support effort) plus a `[fast]` badge when fast mode is on • context window gradient bar with bracketed percentage (`[42%]`), then a prompt-cache badge: `[cache 3:42 PM]` (blue) while the cache is warm, showing when it goes cold, and `[cache cold]` (grey) after. The cache badge is hidden until Claude Code reports cache activity (v2.1.251+).
 
-**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • white session cost • lines added/removed (green/red, whole session) • bracketed cache hit rate and output tokens of the most recent API call (`$23.12 • (+156 −23) • [99% / 528]`). The cost segment drops when Claude Code sends no cost figure; the lines segment drops when either lines count is missing. Before the first API call renders as a skeleton with `--` placeholders.
+**Line 2:** Rate limit usage (5h/7d, subscription plans only), each with its reset time in a bracketed blue badge (`4% 5h [12:00 PM]`) • white session cost • grey session time (wall clock, as of the last update) • lines added/removed (green/red, whole session) • bracketed cache hit rate and output tokens of the most recent API call (`$23.12 • 1h 12m • (+156 −23) • [99% / 528]`). The cost and time segments drop when Claude Code sends no figure for them; the lines segment drops when either lines count is missing. Before the first API call renders as a skeleton with `--` placeholders.
 
 **Line 3:** Current directory, or worktree tag (`[wt:name]`) in place of the directory when inside a git worktree • git branch with ahead/behind counts vs upstream (`↑N ↓M`, only when non-zero) • pull request badge (`PR #N (state)`, clickable, only when the branch has an open PR) • Shortcut ticket link (if branch matches `sc-#####`) and staged/unstaged file counts with insertion/deletion stats • time of the last commit
 
@@ -35,12 +35,12 @@ Each arrow below is a ` • ` separator, so every line reads left to right exact
 flowchart TB
     subgraph ModelLine["Model line"]
         direction LR
-        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge + FastBadge<br/>[medium] [fast]"] -- "•" --> ContextGauge["ContextGauge<br/>■■■■… [8%]"]
+        ModelName["ModelName<br/>Opus 5 (1M context)"] -- "•" --> EffortBadge["EffortBadge + FastBadge<br/>[medium] [fast]"] -- "•" --> ContextGauge["ContextGauge + CacheBadge<br/>■■■■… [8%] [cache 3:42 PM]"]
     end
 
     subgraph UsageLine["Usage line"]
         direction LR
-        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> SessionCost["SessionCost<br/>$23.12"] -- "•" --> LinesChanged["LinesChanged<br/>(+156 −23)"] -- "•" --> CacheOutPair["CacheOutPair<br/>[99% / 528]"]
+        RateWindow5["RateWindow 5h<br/>18% 5h (6:40 AM)"] -- "•" --> RateWindow7["RateWindow 7d<br/>55% 7d (9/2/26 9:46 PM)"] -- "•" --> SessionCost["SessionCost<br/>$23.12"] -- "•" --> SessionTime["SessionTime<br/>1h 12m"] -- "•" --> LinesChanged["LinesChanged<br/>(+156 −23)"] -- "•" --> CacheOutPair["CacheOutPair<br/>[99% / 528]"]
     end
 
     subgraph WorkspaceLine["Workspace line"]
@@ -59,8 +59,10 @@ Every segment maps to exactly one producer:
 | `EffortBadge` | — | `renderMain` (`effortDisplay`) | the model doesn't support effort |
 | `FastBadge` | — | `renderMain` (`fastDisplay`) | `fast_mode` is false or absent |
 | `ContextGauge` | gradient bar, `PercentLabel` | `buildContextDisplay` | never — renders a dim skeleton pre-first-call |
+| `CacheBadge` | — | `buildCacheBadge` | `prompt_cache` is absent (before the first API response, or Claude Code older than v2.1.251) or `caching_observed` is not true |
 | `RateWindow` | `UsagePercent`, `ResetTime` badge | `rateSegment`, grouped by `buildRateDisplay` | API-key users (no `rate_limits`); each window independently. The `ResetTime` badge alone is dropped when `resets_at` is absent |
 | `SessionCost` | — | `buildUsageGroup` | `cost.total_cost_usd` is absent/null |
+| `SessionTime` | — | `buildUsageGroup` (`formatDuration`) | `cost.total_duration_ms` is absent/null |
 | `LinesChanged` | — | `buildUsageGroup` | either lines field is absent |
 | `CacheOutPair` | `CacheRate`, `OutputCount` joined by ` / ` | `buildUsageGroup` | never — `--` placeholders pre-first-call |
 | `LocationTag` | — | `collapseHome` + `truncateMiddle`; the `WorktreeTag` variant in `renderMain` | never |
@@ -84,10 +86,10 @@ A single Go binary: a thin `main.go` that calls into the `internal/statusline` p
 | `main.go` | Entry point (`package main`). Reads stdin/args and `COLUMNS`, calls `statusline.Render`/`RenderGit`, prints the result. |
 | `internal/statusline/statusline.go` | Exported API: `Render` (full status) and `RenderGit` (the two git lines). |
 | `internal/statusline/input.go`, `types.go` | JSON decode and the optional/nullable-field defaulting. |
-| `internal/statusline/render.go` | Line 1 (model, effort/fast badges, context bar), line 2 (rate limits, usage group), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
+| `internal/statusline/render.go` | Line 1 (model, effort/fast badges, context bar, cache badge), line 2 (rate limits, usage group), and line 3's location/worktree tag and PR badge. All segments join with ` • `. |
 | `internal/statusline/git.go` | Git helper: branch, ahead/behind, sync age, change stats. Shells out to `git`. |
 | `internal/statusline/ticket.go` | Ticket-tracker detection (currently Shortcut) from branch names. |
-| `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset formatting). |
+| `internal/statusline/ansi.go` | ANSI palette, context gradient, and display helpers (`truncateMiddle`, token/reset/duration formatting). |
 | `*_test.go` | Test suite. Run with `go test ./...`; exits non-zero on failure. |
 
 ## Docs
@@ -159,7 +161,8 @@ go run . < examples/stdin-payload-example.json
 `examples/stdin-payload-example.json` is a full example of the stdin contract.
 Edit its values to preview different states — `context_window.used_percentage`
 drives the context bar (the committed sample sets it to `100` for a full bar),
-`rate_limits` the 5h/7d segments, `pr` the PR badge. The location and git lines
+`rate_limits` the 5h/7d segments, `prompt_cache` the cache badge, `pr` the PR
+badge. The location and git lines
 read the real repository at `workspace.current_dir`, so point that at an actual
 checkout to see branch, ahead/behind, and ticket output.
 
