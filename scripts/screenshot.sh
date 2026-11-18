@@ -45,5 +45,8 @@ jq --arg dir "$repo" \
 
 TZ=UTC COLUMNS=120 ./statusline < "$tmp/payload.json" > "$tmp/out.ansi"
 
+# The input goes to freeze on stdin ("-"), not as a file argument: freeze
+# reads stdin whenever it is a pipe — as it is for CI run steps — and then
+# ignores a positional file, failing with "No input".
 go run "github.com/charmbracelet/freeze@$FREEZE_VERSION" \
-	--config full --language ansi --output "$OUT" "$tmp/out.ansi"
+	--config full --language ansi --output "$OUT" - < "$tmp/out.ansi"
