@@ -13,9 +13,15 @@ type rawInput struct {
 	FastMode *bool `json:"fast_mode"`
 	Cost     *struct {
 		TotalCostUSD      *float64 `json:"total_cost_usd"`
+		TotalDurationMS   *float64 `json:"total_duration_ms"`
 		TotalLinesAdded   *float64 `json:"total_lines_added"`
 		TotalLinesRemoved *float64 `json:"total_lines_removed"`
 	} `json:"cost"`
+	PromptCache *struct {
+		Warm            *bool    `json:"warm"`
+		CachingObserved *bool    `json:"caching_observed"`
+		ExpiresAt       *float64 `json:"expires_at"`
+	} `json:"prompt_cache"`
 	Workspace struct {
 		CurrentDir  *string `json:"current_dir"`
 		GitWorktree *string `json:"git_worktree"`
@@ -58,8 +64,16 @@ type Input struct {
 	CWD         string
 
 	Cost         *float64
+	DurationMS   *int64
 	LinesAdded   *int
 	LinesRemoved *int
+
+	// PromptCacheObserved is false both when prompt_cache is absent and when
+	// the session has never seen cache tokens; either way there is no cache
+	// badge.
+	PromptCacheObserved  bool
+	PromptCacheWarm      bool
+	PromptCacheExpiresAt *int64
 
 	ContextSize    int
 	UsedPct        float64

@@ -11,8 +11,8 @@ func usageGroupPayload(cwd string) string {
 	return fmt.Sprintf(`{"model":{"display_name":"Test"},"workspace":{"current_dir":%q},"context_window":{"context_window_size":200000,"used_percentage":50,"current_usage":{"input_tokens":500,"cache_creation_input_tokens":500,"cache_read_input_tokens":99000,"output_tokens":528}},"cost":{"total_cost_usd":23.12,"total_lines_added":156,"total_lines_removed":23}}`, cwd)
 }
 
-// Line 2's usage area is three segments — cost, lines changed, and a
-// bracketed cache/out pair joined by " / ". No pipes anywhere.
+// Without a session time, line 2's usage area is three segments — cost, lines
+// changed, and a bracketed cache/out pair joined by " / ". No pipes anywhere.
 func TestUsageGroup(t *testing.T) {
 	tmp := t.TempDir()
 

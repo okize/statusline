@@ -8,11 +8,10 @@ import (
 )
 
 // renderMain builds the full multi-line status output: a leading blank line,
-// line 1 (model + effort/fast badges + context bar), line 2 (rate limits +
-// cost + cache + Out), and line 3 (location + branch + optional PR badge and
-// change stats). Shells
-// out to the git renderer for the git portions. columns == 0 means "no
-// truncation".
+// line 1 (model + effort/fast badges + context bar + cache badge), line 2 (rate
+// limits + cost + time + lines + cache/out), and line 3 (location + branch +
+// optional PR badge and change stats). Shells out to the git renderer for the
+// git portions. columns == 0 means "no truncation".
 func renderMain(in *Input, columns int) string {
 	// Reasoning effort badge (absent when the model doesn't support effort).
 	effortDisplay := ""
@@ -48,6 +47,9 @@ func renderMain(in *Input, columns int) string {
 		}
 	}
 	contextDisplay := buildContextDisplay(usedPct, initialized)
+	if cacheBadge := buildCacheBadge(in); cacheBadge != "" {
+		contextDisplay += " " + cacheBadge
+	}
 
 	rateDisplay := buildRateDisplay(in, initialized)
 
@@ -88,12 +90,13 @@ func joinSegments(segments ...string) string {
 	return strings.Join(present, " • ")
 }
 
-// buildUsageGroup renders line 2's usage area as up to three ` • `-joined
-// segments — `$23.12 • (+156 −23) • [99% / 528]` — a white session cost, lines
-// added/removed (mutedGreen/mutedRed), and a bracketed pair holding the cache
-// hit rate and output tokens of the most recent API call, joined by " / ". The
-// cost and lines segments drop when Claude Code sends no data for them; cache
-// and out fall back to the `--` skeleton placeholders instead.
+// buildUsageGroup renders line 2's usage area as up to four ` • `-joined
+// segments — `$23.12 • 1h 12m • (+156 −23) • [99% / 528]` — a white session
+// cost, the session's light-grey wall-clock time, lines added/removed
+// (mutedGreen/mutedRed), and a bracketed pair holding the cache hit rate and
+// output tokens of the most recent API call, joined by " / ". The cost, time,
+// and lines segments drop when Claude Code sends no data for them; cache and
+// out fall back to the `--` skeleton placeholders instead.
 func buildUsageGroup(in *Input, initialized bool) string {
 	cachePart := "--%"
 	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
@@ -110,12 +113,36 @@ func buildUsageGroup(in *Input, initialized bool) string {
 	if in.Cost != nil {
 		costSegment = white + fmt.Sprintf("$%.2f", *in.Cost) + reset
 	}
+	timeSegment := ""
+	if in.DurationMS != nil {
+		timeSegment = lightGrey + formatDuration(*in.DurationMS) + reset
+	}
 	linesSegment := ""
 	if in.LinesAdded != nil && in.LinesRemoved != nil {
 		linesSegment = lightGrey + "(" + mutedGreen + "+" + strconv.Itoa(*in.LinesAdded) +
 			" " + mutedRed + "−" + strconv.Itoa(*in.LinesRemoved) + lightGrey + ")" + reset
 	}
-	return joinSegments(costSegment, linesSegment, lightGrey+"["+cachePart+" / "+outPart+"]"+reset)
+	return joinSegments(costSegment, timeSegment, linesSegment, lightGrey+"["+cachePart+" / "+outPart+"]"+reset)
+}
+
+// buildCacheBadge renders the prompt-cache badge that follows the context
+// percentage: `[cache 3:42 PM]` while the cached prefix is warm, holding the
+// time it goes cold, and a dimmed `[cache cold]` after. The fill is fixed like
+// the reset badge's. Claude Code re-runs the status line at expires_at, so the
+// switch to cold needs no timer here. "" when the session has never seen cache
+// tokens or prompt_cache hasn't arrived yet.
+func buildCacheBadge(in *Input) string {
+	if !in.PromptCacheObserved {
+		return ""
+	}
+	if !in.PromptCacheWarm {
+		return lightGrey + "[" + dimGrey + "cache cold" + lightGrey + "]" + reset
+	}
+	label := "warm"
+	if in.PromptCacheExpiresAt != nil {
+		label = formatClockTime(*in.PromptCacheExpiresAt)
+	}
+	return lightGrey + "[" + mutedBlue + "cache " + label + lightGrey + "]" + reset
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form

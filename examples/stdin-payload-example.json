@@ -22,7 +22,7 @@
       "name": "statusline"
     }
   },
-  "version": "2.1.211",
+  "version": "2.1.251",
   "output_style": {
     "name": "default"
   },
@@ -47,6 +47,13 @@
     "remaining_percentage": 0
   },
   "exceeds_200k_tokens": false,
+  "prompt_cache": {
+    "warm": true,
+    "caching_observed": true,
+    "ttl": "5m",
+    "expires_at": 1738424520,
+    "hit_ratio": 0.93
+  },
   "fast_mode": false,
   "thinking": {
     "enabled": true

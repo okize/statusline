@@ -182,12 +182,14 @@ func TestLineLayout(t *testing.T) {
 	assertContains(t, "line 1 keeps the model name", line1, "Test")
 	assertContains(t, "line 1 keeps the effort badge", line1, "[medium]")
 	assertContains(t, "context bar moves to line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [50%]")
+	assertContains(t, "cache badge follows the percentage on line 1", line1, "[50%] [cache cold]")
 	assertNotContains(t, "rate limits leave line 1", line1, "5h")
 	assertNotContains(t, "usage group leaves line 1", line1, "|")
 
 	assertContains(t, "5h window moves to line 2", line2, "24% 5h [")
 	assertContains(t, "7d window moves to line 2", line2, "41% 7d [")
 	assertContains(t, "usage group moves to line 2", line2, "[90% / 613]")
+	assertContains(t, "session time sits on line 2 before the cache/out pair", line2, "] • 1h 12m • [90% / 613]")
 	assertNotContains(t, "no dangling separator before the group", line2, "7d | ")
 	assertNotContains(t, "context bar does not repeat on line 2", line2, "■")
 
