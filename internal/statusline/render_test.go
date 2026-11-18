@@ -115,18 +115,15 @@ func TestGradient(t *testing.T) {
 	assertNotContains(t, "gradient no longer emits xterm-256 codes", out, "\x1b[38;5;33m■")
 }
 
+// The bracketed percentage is light grey throughout, like the cache/out pair;
+// the bar alone carries the gradient.
 func TestPercentLabelColor(t *testing.T) {
 	tmp := t.TempDir()
-	assertContains(t, "18% value matches its last filled segment",
-		run(t, contextPayload(tmp, 18), 0), "\x1b[38;5;248m[\x1b[38;2;114;168;176m18%\x1b[38;5;248m]")
-	assertContains(t, "42% value matches its last filled segment",
-		run(t, contextPayload(tmp, 42), 0), "\x1b[38;5;248m[\x1b[38;2;255;255;0m42%\x1b[38;5;248m]")
-	assertContains(t, "72% value matches its last filled segment",
-		run(t, contextPayload(tmp, 72), 0), "\x1b[38;5;248m[\x1b[38;2;255;165;0m72%\x1b[38;5;248m]")
-	assertContains(t, "91% value matches its last filled segment",
-		run(t, contextPayload(tmp, 91), 0), "\x1b[38;5;248m[\x1b[38;2;243;126;29m91%\x1b[38;5;248m]")
-	assertContains(t, "3% value is blue before any segment fills",
-		run(t, contextPayload(tmp, 3), 0), "\x1b[38;5;248m[\x1b[38;2;58;133;247m3%\x1b[38;5;248m]")
+	for _, pct := range []int{3, 18, 42, 72, 91} {
+		label := fmt.Sprintf("[%d%%]", pct)
+		assertContains(t, label+" is light grey", run(t, contextPayload(tmp, pct), 0),
+			"\x1b[38;5;248m"+label+"\x1b[0m")
+	}
 }
 
 func TestPRBadge(t *testing.T) {
@@ -168,8 +165,9 @@ func TestPRBadgeWithGitStats(t *testing.T) {
 	assertContains(t, "git stats present alongside PR badge", out, "Unstaged:")
 }
 
-// The three-line contract: line 1 is model + effort + context bar, line 2 is
-// the rate-limit windows plus cache/out, line 3 is location + git + PR/stats.
+// The three-line contract: line 1 is model + effort + rate-limit windows +
+// cost, line 2 is the context bar + cache badge + time + cache/out, line 3 is
+// location + git + PR/stats.
 func TestLineLayout(t *testing.T) {
 	tmp := t.TempDir()
 	lines := renderLines(t, layoutPayload(tmp), 0)
@@ -179,19 +177,15 @@ func TestLineLayout(t *testing.T) {
 	}
 	line1, line2, line3 := stripANSI(lines[0]), stripANSI(lines[1]), stripANSI(lines[2])
 
-	assertContains(t, "line 1 keeps the model name", line1, "Test")
-	assertContains(t, "line 1 keeps the effort badge", line1, "[medium]")
-	assertContains(t, "context bar moves to line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [50%]")
-	assertContains(t, "cache badge follows the percentage on line 1", line1, "[50%] [cache cold]")
-	assertNotContains(t, "rate limits leave line 1", line1, "5h")
-	assertNotContains(t, "usage group leaves line 1", line1, "|")
+	assertContains(t, "rate windows follow the effort badge on line 1", line1, "Test [medium] • 24% 5h [")
+	assertContains(t, "7d window sits on line 1", line1, "41% 7d [")
+	assertContains(t, "cost ends line 1", line1+"\n", "] • $13.23\n")
+	assertNotContains(t, "context bar leaves line 1", line1, "■")
 
-	assertContains(t, "5h window moves to line 2", line2, "24% 5h [")
-	assertContains(t, "7d window moves to line 2", line2, "41% 7d [")
-	assertContains(t, "usage group moves to line 2", line2, "[90% / 613]")
-	assertContains(t, "session time sits on line 2 before the cache/out pair", line2, "] • 1h 12m • [90% / 613]")
-	assertNotContains(t, "no dangling separator before the group", line2, "7d | ")
-	assertNotContains(t, "context bar does not repeat on line 2", line2, "■")
+	assertContains(t, "line 2 leads with the context bar and cache badge", line2,
+		"■■■■■■■■■■■■■■■■■■■■ [50%] [cache cold] • 1h 12m • [90% / 613]")
+	assertNotContains(t, "rate limits leave line 2", line2, "5h")
+	assertNotContains(t, "cost leaves line 2", line2, "$")
 
 	assertContains(t, "line 3 keeps the location", line3, tmp)
 	assertContains(t, "git line merges into line 3", line3, "not a git repo")
@@ -202,27 +196,27 @@ func TestLineLayout(t *testing.T) {
 	}
 }
 
-// With no rate-limit data (API-key users) line 2 leads with the cache segment
-// rather than a dangling bullet.
+// With no rate-limit or cost data (API-key users, before the first cost
+// figure) line 1 is the model alone, with no dangling bullet.
 func TestLineLayoutWithoutRateLimits(t *testing.T) {
 	tmp := t.TempDir()
 	lines := renderLines(t, cachePayload(tmp), 0)
 
-	line2 := stripANSI(lines[1])
-	assertEqual(t, "line 2 is the usage group only", line2, "[90% / 10]")
+	assertEqual(t, "line 1 is the model only", stripANSI(lines[0]), "Test")
+	assertEqual(t, "line 2 is the context bar and cache/out", stripANSI(lines[1]),
+		"■■■■■■■■■■■■■■■■■■■■ [50%] • [90% / 10]")
 }
 
-// Before the first API call the skeleton keeps the same shape: dim bar on line
-// 1, placeholder windows and placeholder cache/out on line 2.
+// Before the first API call the skeleton keeps the same shape: placeholder
+// windows on line 1, dim bar and placeholder cache/out on line 2.
 func TestLineLayoutSkeleton(t *testing.T) {
 	tmp := t.TempDir()
 	lines := renderLines(t, uninitPayload(tmp), 0)
 
 	line1, line2 := stripANSI(lines[0]), stripANSI(lines[1])
-	assertContains(t, "skeleton bar stays on line 1", line1, "■■■■■■■■■■■■■■■■■■■■ [--%]")
-	assertNotContains(t, "skeleton rate placeholders leave line 1", line1, "--% 5h")
-	assertEqual(t, "skeleton line 2 holds rate and group placeholders", line2,
-		"--% 5h • --% 7d • [--% / --]")
+	assertEqual(t, "skeleton line 1 holds the rate placeholders", line1, "Test • --% 5h • --% 7d")
+	assertEqual(t, "skeleton line 2 holds the bar and group placeholders", line2,
+		"■■■■■■■■■■■■■■■■■■■■ [--%] • [--% / --]")
 }
 
 // Line 3 orders its segments location, branch, PR, change stats, sync age —

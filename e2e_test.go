@@ -105,17 +105,17 @@ func TestE2EStdinOutputShape(t *testing.T) {
 	}
 
 	l1, l2, l3 := e2eStrip(fields[1]), e2eStrip(fields[2]), e2eStrip(fields[3])
-	if !strings.Contains(l1, "Opus 4.8") || !strings.Contains(l1, "[42%]") {
-		t.Errorf("line 1 missing model or context percentage: %q", l1)
+	if !strings.Contains(l1, "Opus 4.8") || !strings.Contains(l1, "18% 5h") || !strings.Contains(l1, "55% 7d") {
+		t.Errorf("line 1 missing model or rate limits: %q", l1)
 	}
-	if strings.Contains(l1, "5h") || strings.Contains(l1, "Cache:") {
-		t.Errorf("line 1 must carry only the model and context bar: %q", l1)
+	if strings.Contains(l1, "■") || strings.Contains(l1, "[42%]") {
+		t.Errorf("line 1 must not carry the context bar: %q", l1)
 	}
-	if !strings.Contains(l2, "18% 5h") || !strings.Contains(l2, "55% 7d") {
-		t.Errorf("line 2 missing rate limits: %q", l2)
+	if !strings.Contains(l2, "■") || !strings.Contains(l2, "[42%]") {
+		t.Errorf("line 2 missing the context bar or percentage: %q", l2)
 	}
-	if !strings.Contains(l2, "[58% / 12k]") {
-		t.Errorf("line 2 missing the usage group: %q", l2)
+	if strings.Contains(l2, "5h") || !strings.Contains(l2, "[58% / 12k]") {
+		t.Errorf("line 2 must hold the usage group and no rate limits: %q", l2)
 	}
 	if !strings.Contains(l3, repo) || !strings.Contains(l3, "synced") {
 		t.Errorf("line 3 missing directory or sync age: %q", l3)
