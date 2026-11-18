@@ -8,8 +8,8 @@ import (
 )
 
 // renderMain builds the full multi-line status output: a leading blank line,
-// line 1 (model + effort/fast badges + context bar + cache badge), line 2 (rate
-// limits + cost + time + lines + cache/out), and line 3 (location + branch +
+// line 1 (model + effort/fast badges + rate limits + cost), line 2 (context bar
+// + cache badge + time + lines + cache/out), and line 3 (location + branch +
 // optional PR badge and change stats). Shells out to the git renderer for the
 // git portions. columns == 0 means "no truncation".
 func renderMain(in *Input, columns int) string {
@@ -53,6 +53,11 @@ func renderMain(in *Input, columns int) string {
 
 	rateDisplay := buildRateDisplay(in, initialized)
 
+	costDisplay := ""
+	if in.Cost != nil {
+		costDisplay = white + fmt.Sprintf("$%.2f", *in.Cost) + reset
+	}
+
 	// Inside a worktree the [wt:name] tag replaces the directory.
 	locationDisplay := currentFolder
 	if in.WorktreeName != "" {
@@ -63,23 +68,18 @@ func renderMain(in *Input, columns int) string {
 
 	gitBranchLine, gitStatsLine, gitSyncLine := renderGitLines(in.CWD, columns)
 
-	// Line 2 leads with the rate-limit windows when they exist; without them
-	// (API-key users) it starts at the usage group rather than a bare bullet.
-	usageLine := buildUsageGroup(in, initialized)
-	if rateDisplay != "" {
-		usageLine = rateDisplay + " • " + usageLine
-	}
-
+	// joinSegments drops the rate windows (API-key users) and the cost when
+	// absent, so line 1 never ends in a bare bullet.
 	var sb strings.Builder
 	sb.WriteString("\n")
-	sb.WriteString(green + in.ModelName + reset + effortDisplay + fastDisplay + " • " + contextDisplay + "\n")
-	sb.WriteString(usageLine + "\n")
+	sb.WriteString(joinSegments(green+in.ModelName+reset+effortDisplay+fastDisplay, rateDisplay, costDisplay) + "\n")
+	sb.WriteString(joinSegments(contextDisplay, buildUsageGroup(in, initialized)) + "\n")
 	sb.WriteString(joinSegments(locationDisplay, gitBranchLine, prDisplay, gitStatsLine, gitSyncLine) + "\n")
 	return sb.String()
 }
 
-// joinSegments joins the non-empty segments of the location line with " • ",
-// so an absent PR badge or a clean worktree leaves no dangling separator.
+// joinSegments joins the non-empty segments of a line with " • ", so an absent
+// PR badge, rate window, or cost leaves no dangling separator.
 func joinSegments(segments ...string) string {
 	var present []string
 	for _, s := range segments {
@@ -90,13 +90,13 @@ func joinSegments(segments ...string) string {
 	return strings.Join(present, " • ")
 }
 
-// buildUsageGroup renders line 2's usage area as up to four ` • `-joined
-// segments — `$23.12 • 1h 12m • (+156 −23) • [99% / 528]` — a white session
-// cost, the session's light-grey wall-clock time, lines added/removed
+// buildUsageGroup renders the part of line 2 after the context bar as up to
+// three ` • `-joined segments — `1h 12m • (+156 −23) • [99% / 528]` — the
+// session's light-grey wall-clock time, lines added/removed
 // (mutedGreen/mutedRed), and a bracketed pair holding the cache hit rate and
-// output tokens of the most recent API call, joined by " / ". The cost, time,
-// and lines segments drop when Claude Code sends no data for them; cache and
-// out fall back to the `--` skeleton placeholders instead.
+// output tokens of the most recent API call, joined by " / ". The time and
+// lines segments drop when Claude Code sends no data for them; cache and out
+// fall back to the `--` skeleton placeholders instead.
 func buildUsageGroup(in *Input, initialized bool) string {
 	cachePart := "--%"
 	totalIn := in.CurInput + in.CurCacheCreate + in.CurCacheRead
@@ -109,10 +109,6 @@ func buildUsageGroup(in *Input, initialized bool) string {
 		outPart = formatTokens(in.CurOutput)
 	}
 
-	costSegment := ""
-	if in.Cost != nil {
-		costSegment = white + fmt.Sprintf("$%.2f", *in.Cost) + reset
-	}
 	timeSegment := ""
 	if in.DurationMS != nil {
 		timeSegment = lightGrey + formatDuration(*in.DurationMS) + reset
@@ -122,33 +118,32 @@ func buildUsageGroup(in *Input, initialized bool) string {
 		linesSegment = lightGrey + "(" + mutedGreen + "+" + strconv.Itoa(*in.LinesAdded) +
 			" " + mutedRed + "−" + strconv.Itoa(*in.LinesRemoved) + lightGrey + ")" + reset
 	}
-	return joinSegments(costSegment, timeSegment, linesSegment, lightGrey+"["+cachePart+" / "+outPart+"]"+reset)
+	return joinSegments(timeSegment, linesSegment, lightGrey+"["+cachePart+" / "+outPart+"]"+reset)
 }
 
 // buildCacheBadge renders the prompt-cache badge that follows the context
 // percentage: `[cache 3:42 PM]` while the cached prefix is warm, holding the
-// time it goes cold, and a dimmed `[cache cold]` after. The fill is fixed like
-// the reset badge's. Claude Code re-runs the status line at expires_at, so the
-// switch to cold needs no timer here. "" when the session has never seen cache
-// tokens or prompt_cache hasn't arrived yet.
+// time it goes cold, and `[cache cold]` after. All light grey, like the
+// percentage before it. Claude Code re-runs the status line at expires_at, so
+// the switch to cold needs no timer here. "" when the session has never seen
+// cache tokens or prompt_cache hasn't arrived yet.
 func buildCacheBadge(in *Input) string {
 	if !in.PromptCacheObserved {
 		return ""
 	}
-	if !in.PromptCacheWarm {
-		return lightGrey + "[" + dimGrey + "cache cold" + lightGrey + "]" + reset
+	label := "cold"
+	if in.PromptCacheWarm {
+		label = "warm"
+		if in.PromptCacheExpiresAt != nil {
+			label = formatClockTime(*in.PromptCacheExpiresAt)
+		}
 	}
-	label := "warm"
-	if in.PromptCacheExpiresAt != nil {
-		label = formatClockTime(*in.PromptCacheExpiresAt)
-	}
-	return lightGrey + "[" + mutedBlue + "cache " + label + lightGrey + "]" + reset
+	return lightGrey + "[cache " + label + "]" + reset
 }
 
 // buildContextDisplay renders the 20-segment context bar. Filled segments form
-// the fixed gradient; empty segments are dim grey; the bracketed percentage
-// takes the color of the last filled segment. Uninitialized renders a dim
-// skeleton with a [--%] placeholder.
+// the fixed gradient; empty segments are dim grey; the bracketed percentage is
+// light grey. Uninitialized renders a dim skeleton with a [--%] placeholder.
 func buildContextDisplay(pct int, initialized bool) string {
 	const barLength = 20
 
@@ -170,13 +165,7 @@ func buildContextDisplay(pct int, initialized bool) string {
 		}
 	}
 
-	labelIdx := filled - 1
-	if labelIdx < 0 {
-		labelIdx = 0
-	}
-	labelColor := fgRGB(contextGradient[labelIdx])
-
-	return bar.String() + reset + " " + lightGrey + "[" + labelColor + strconv.Itoa(pct) + "%" + lightGrey + "]" + reset
+	return bar.String() + reset + " " + lightGrey + "[" + strconv.Itoa(pct) + "%]" + reset
 }
 
 // buildRateDisplay renders the 5h/7d rate-limit segment. Before the first API
